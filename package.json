@@ -1,0 +1,22 @@
+{
+  "name": "qmkhid",
+  "version": "0.1.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hiszd/qmkhid.git"
+  },
+  "author": "HisZd",
+  "license": "GPL-2.0",
+  "bugs": {
+    "url": "https://github.com/hiszd/qmkhid/issues"
+  },
+  "homepage": "https://github.com/hiszd/qmkhid#readme",
+  "dependencies": {
+    "node-hid": "^2.1.2"
+  }
+}
