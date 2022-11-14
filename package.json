@@ -4,7 +4,9 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "run": "npx tsc app.ts && node app.js",
+    "test": "npx tsc app.ts && node app.js --op -r audiorelay.exe -a layer_on_con -l 1 --op -r cod.exe -a layer_on -l 3",
+    "cod": "npx tsc app.ts && node app.js -p cod.exe -a layer_switch -l 3"
   },
   "repository": {
     "type": "git",
@@ -18,5 +20,9 @@
   "homepage": "https://github.com/hiszd/qmkhid#readme",
   "dependencies": {
     "node-hid": "^2.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.9",
+    "typescript": "^4.8.4"
   }
 }

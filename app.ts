@@ -1,40 +1,49 @@
-var HID = require('node-hid');
+const HID = require('node-hid');
 var devices = HID.devices();
-var exec = require('child_process').exec;
-;
-var emptyArgs = function () { return ({
-    process: '',
-    action: '',
-    layer: 0
-}); };
-var args = [];
+const exec = require('child_process').exec;
+
+interface Args {
+  process: string,
+  action: string,
+  layer: number
+};
+
+const emptyArgs = (): Args => ({
+  process: '',
+  action: '',
+  layer: 0
+});
+
+let args: Args[] = [];
+
 // node app.js --op audiorelay.exe -a layer_on_con -l 1
-var argv = process.argv.splice(2, process.argv.length).join(' ');
+let argv = process.argv.splice(2, process.argv.length).join(' ');
 console.log(argv);
-var argvstart = argv.indexOf("--op");
-var argvpost = argv.trimStart().split('--op ').slice(argvstart, argv.length);
+let argvstart = argv.indexOf("--op");
+let argvpost = argv.trimStart().split('--op ').slice(argvstart, argv.length);
 argvpost = argvpost.splice(1, argvpost.length);
-for (var arg in argvpost) {
-    console.log('thing: ', argvpost[arg]);
-    var argind = args.length + 1;
-    args[argind] = emptyArgs();
-    console.log(argind);
-    var argarr = argvpost[arg].split(' ');
-    for (var a in argarr) {
-        switch (argarr[a]) {
-            case '-r':
-                args[argind].process = argarr[+a + 1];
-                break;
-            case '-a':
-                args[argind].action = argarr[+a + 1];
-                break;
-            case '-l':
-                args[argind].layer = +argarr[+a + 1];
-                break;
-        }
+for (let arg in argvpost) {
+  console.log('thing: ', argvpost[arg]);
+  let argind = args.length + 1;
+  args[argind] = emptyArgs();
+  console.log(argind);
+  let argarr = argvpost[arg].split(' ');
+  for (let a in argarr) {
+    switch (argarr[a]) {
+      case '-r':
+        args[argind].process = argarr[+a + 1];
+        break;
+      case '-a':
+        args[argind].action = argarr[+a + 1];
+        break;
+      case '-l':
+        args[argind].layer = +argarr[+a + 1];
+        break;
     }
-    console.log(args[argind]);
+  }
+  console.log(args[argind]);
 }
+
 /*
 
 const args = process.argv;
