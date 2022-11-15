@@ -7,7 +7,8 @@
     "run": "npx tsc app.ts && node app.js",
     "test": "npx tsc app.ts && node app.js --op -r audiorelay.exe -a layer_on_con -l 1 --op -r cod.exe -a layer_on -l 3",
     "testlin": "npx tsc app.ts && node app.js --op -r hyper -a layer_switch -l 3 --op -r remmina -a layer_on -l 1",
-    "cod": "npx tsc app.ts && node app.js -p cod.exe -a layer_switch -l 3"
+    "boot": "npx tsc app.ts && node app.js --op -a bootloader",
+    "rgb": "npx tsc app.ts && node app.js --op -a rgb_change"
   },
   "repository": {
     "type": "git",

@@ -2,6 +2,12 @@ const HID = require('node-hid');
 var devices = HID.devices();
 const exec = require('child_process').exec;
 
+var device = devices.find((e: any) => {
+  return e.vendorId == 43670 && e.productId == 43689 && e.usagePage == 65424 && e.usage == 105
+})
+
+var keys = new HID.HID(device.path);
+
 interface Operation {
   cb(status?: boolean): void;
   layer?: number;
@@ -12,17 +18,35 @@ interface Operation {
 }
 
 // Actual messages sent to the HID device
+// Format is like this:
+// [0x00, reqtype, command, data1, data2, data3]
 let actions: { [key: string]: Function } = {
   "layer_on": (lay: number): void => {
     lay = (lay & 0xFF);
-    console.log("hid write: ", lay, " ", 1);
-    keys.write([0x00, lay, 1]);
+    let write = [0x00, 0, lay, 1];
+    console.log("hid write: ", write.toString());
+    keys.write(write);
   },
   "layer_off": (lay: number): void => {
     lay = (lay & 0xFF);
-    console.log("hid write: ", lay, " ", 0);
-    keys.write([0x00, lay, 0]);
+    let write = [0x00, 0, lay, 0];
+    console.log("hid write: ", write.toString());
+    keys.write(write);
   },
+  "rgb_change": (r: number, g: number, b: number, ind: number): void => {
+    r = (r & 0xFF);
+    g = (g & 0xFF);
+    b = (b & 0xFF);
+    ind = (ind & 0xFF);
+    let write = [0x00, 1, 0, r, g, b, ind];
+    console.log("hid write: ", write.toString());
+    keys.write(write);
+  },
+  "bootloader": (): void => {
+    let write = [0x00, 99, 0, 0];
+    console.log('bootloader');
+    keys.write(write);
+  }
 }
 
 // Functions that return custom versions of 'Operation' for different purposes
@@ -140,6 +164,48 @@ let ops: { [key: string]: Function } = {
       });
     },
     success: false
+  }),
+  "rgb_change": (): Operation => ({
+    cb(status?: boolean): void {
+      if (status == true || status == undefined) {
+        actions["rgb_change"](255, 0, 0, 1);
+      }
+    },
+    isRunning() {
+      let platform = process.platform;
+      let cmd = '';
+      switch (platform) {
+        case 'win32': cmd = `tasklist`; break;
+        case 'darwin': cmd = `ps -ax | grep ${this.process}`; break;
+        case 'linux': cmd = `ps -A`; break;
+        default: break;
+      }
+      exec(cmd, (err, stdout, stderr) => {
+        this.cb(stdout.toLowerCase().indexOf(this.process.toLowerCase()) > -1);
+      });
+    },
+    success: false
+  }),
+  "bootloader": (): Operation => ({
+    cb(status?: boolean): void {
+      if (status == true || status == undefined) {
+        actions["bootloader"]();
+      }
+    },
+    isRunning() {
+      let platform = process.platform;
+      let cmd = '';
+      switch (platform) {
+        case 'win32': cmd = `tasklist`; break;
+        case 'darwin': cmd = `ps -ax | grep ${this.process}`; break;
+        case 'linux': cmd = `ps -A`; break;
+        default: break;
+      }
+      exec(cmd, (err, stdout, stderr) => {
+        this.cb(stdout.toLowerCase().indexOf(this.process.toLowerCase()) > -1);
+      });
+    },
+    success: false
   })
 }
 
@@ -186,18 +252,20 @@ for (let arg in argvpost) {
     }
   }
   args[argind].act = act(args[argind].action, args[argind].layer);
-  args[argind].act.layer = args[argind].layer;
+  if (args[argind].layer) {
+    args[argind].act.layer = args[argind].layer;
+  } else {
+    if (args[argind].action == "bootloader" || args[argind].action == "rgb_change") {
+    } else {
+      throw ('A layer must be specified');
+    }
+  }
   if (args[argind].process) {
     args[argind].act.process = args[argind].process;
     args[argind].act.timer = setInterval(() => args[argind].act.isRunning(), 3000);
   } else {
+    console.log('else');
     args[argind].act.cb();
   }
   console.log(argind, ': ', args[argind]);
 }
-
-var device = devices.find((e: any) => {
-  return e.vendorId == 43670 && e.productId == 43689 && e.usagePage == 65424 && e.usage == 105
-})
-
-var keys = new HID.HID(device.path);

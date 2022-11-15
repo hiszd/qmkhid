@@ -1,19 +1,45 @@
 var HID = require('node-hid');
 var devices = HID.devices();
 var exec = require('child_process').exec;
+var device = devices.find(function (e) {
+    return e.vendorId == 43670 && e.productId == 43689 && e.usagePage == 65424 && e.usage == 105;
+});
+var keys = new HID.HID(device.path);
+// Actual messages sent to the HID device
+// Format is like this:
+// [0x00, reqtype, command, data1, data2, data3]
 var actions = {
     "layer_on": function (lay) {
         lay = (lay & 0xFF);
-        console.log("hid write: ", lay, " ", 1);
-        keys.write([0x00, lay, 1]);
+        var write = [0x00, 0, lay, 1];
+        console.log("hid write: ", write.toString());
+        keys.write(write);
     },
     "layer_off": function (lay) {
         lay = (lay & 0xFF);
-        console.log("hid write: ", lay, " ", 1);
-        keys.write([0x00, lay, 0]);
+        var write = [0x00, 0, lay, 0];
+        console.log("hid write: ", write.toString());
+        keys.write(write);
+    },
+    "rgb_change": function (r, g, b, ind) {
+        r = (r & 0xFF);
+        g = (g & 0xFF);
+        b = (b & 0xFF);
+        ind = (ind & 0xFF);
+        var write = [0x00, 1, 0, r, g, b, ind];
+        console.log("hid write: ", write.toString());
+        keys.write(write);
+    },
+    "bootloader": function () {
+        var write = [0x00, 99, 0, 0];
+        console.log('bootloader');
+        keys.write(write);
     }
 };
+// Functions that return custom versions of 'Operation' for different purposes
 var ops = {
+    // If a process was specified then wait till it is on to turn the layer on
+    // Otherwise just turn the layer on
     "layer_on": function () { return ({
         cb: function (status) {
             if (status == true) {
@@ -48,6 +74,8 @@ var ops = {
         },
         success: false
     }); },
+    // Wait to turn the layer on until the application is discovered
+    // Then stay active and wait until the application is closed and launched again
     "layer_on_con": function () { return ({
         cb: function (status) {
             if (status == true && !this.success) {
@@ -83,6 +111,8 @@ var ops = {
         },
         success: false
     }); },
+    // If a process was specified then wait till it is on to turn the layer off
+    // Otherwise just turn the layer off
     "layer_off": function () { return ({
         cb: function (status) {
             if (status == true) {
@@ -117,6 +147,9 @@ var ops = {
         },
         success: false
     }); },
+    // Wait till application is discovered then turn layer on
+    // when application is closed then turn the layer off
+    // then wait till it is launched again
     "layer_switch": function () { return ({
         cb: function (status) {
             if (status == true && !this.success) {
@@ -129,6 +162,62 @@ var ops = {
             }
             else if (status == undefined) {
                 throw ("Cannot switch without process specified");
+            }
+        },
+        isRunning: function () {
+            var _this = this;
+            var platform = process.platform;
+            var cmd = '';
+            switch (platform) {
+                case 'win32':
+                    cmd = "tasklist";
+                    break;
+                case 'darwin':
+                    cmd = "ps -ax | grep ".concat(this.process);
+                    break;
+                case 'linux':
+                    cmd = "ps -A";
+                    break;
+                default: break;
+            }
+            exec(cmd, function (err, stdout, stderr) {
+                _this.cb(stdout.toLowerCase().indexOf(_this.process.toLowerCase()) > -1);
+            });
+        },
+        success: false
+    }); },
+    "rgb_change": function () { return ({
+        cb: function (status) {
+            if (status == true || status == undefined) {
+                actions["rgb_change"](255, 0, 0, 1);
+            }
+        },
+        isRunning: function () {
+            var _this = this;
+            var platform = process.platform;
+            var cmd = '';
+            switch (platform) {
+                case 'win32':
+                    cmd = "tasklist";
+                    break;
+                case 'darwin':
+                    cmd = "ps -ax | grep ".concat(this.process);
+                    break;
+                case 'linux':
+                    cmd = "ps -A";
+                    break;
+                default: break;
+            }
+            exec(cmd, function (err, stdout, stderr) {
+                _this.cb(stdout.toLowerCase().indexOf(_this.process.toLowerCase()) > -1);
+            });
+        },
+        success: false
+    }); },
+    "bootloader": function () { return ({
+        cb: function (status) {
+            if (status == true || status == undefined) {
+                actions["bootloader"]();
             }
         },
         isRunning: function () {
@@ -190,12 +279,22 @@ var _loop_1 = function (arg) {
         }
     }
     args[argind].act = act(args[argind].action, args[argind].layer);
-    args[argind].act.layer = args[argind].layer;
+    if (args[argind].layer) {
+        args[argind].act.layer = args[argind].layer;
+    }
+    else {
+        if (args[argind].action == "bootloader" || args[argind].action == "rgb_change") {
+        }
+        else {
+            throw ('A layer must be specified');
+        }
+    }
     if (args[argind].process) {
         args[argind].act.process = args[argind].process;
         args[argind].act.timer = setInterval(function () { return args[argind].act.isRunning(); }, 3000);
     }
     else {
+        console.log('else');
         args[argind].act.cb();
     }
     console.log(argind, ': ', args[argind]);
@@ -203,27 +302,3 @@ var _loop_1 = function (arg) {
 for (var arg in argvpost) {
     _loop_1(arg);
 }
-var device = devices.find(function (e) {
-    return e.vendorId == 43670 && e.productId == 43689 && e.usagePage == 65424 && e.usage == 105;
-});
-var keys = new HID.HID(device.path);
-/*
-// Guts
-let proc = getarg("process").value;
-
-if (proc != "") {
-  let success: boolean = false;
-  let repeat = setInterval(() => {
-    isRunning(proc, (status: boolean) => {
-      if (actions[getarg("action").value]) {
-        let clr = actions[getarg("action").value].cb(success);
-        if (clr) clearInterval(repeat);
-      } else {
-        throw "Action undefined";
-      }
-    })
-  }, 3000);
-} else {
-  execute(getarg("action").value);
-}
-*/
