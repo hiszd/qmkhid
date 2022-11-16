@@ -9,7 +9,8 @@
     "testlin": "npx tsc app.ts && node app.js --op -r hyper -a layer_switch -l 3 --op -r remmina -a layer_on -l 1",
     "testlin1": "npx tsc app.ts && node app.js --op -a layer_on -l 3",
     "boot": "npx tsc app.ts && node app.js --op -a bootloader",
-    "rgb": "npx tsc app.ts && node app.js --op -a rgb_change -rgb 255,255,0"
+    "rgb": "npx tsc app.ts && node app.js --op -a rgb_change -rgb 255,255,0",
+    "conftest": "npx tsc app.ts && node app.js -c lintest.json"
   },
   "repository": {
     "type": "git",

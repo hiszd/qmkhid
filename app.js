@@ -4,6 +4,7 @@ var lib_1 = require("./lib");
 var HID = require('node-hid');
 var devices = HID.devices();
 var exec = require('child_process').exec;
+var fs = require('fs');
 var device = devices.find(function (e) {
     return e.vendorId == 43670 && e.productId == 43689 && e.usagePage == 65424 && e.usage == 105;
 });
@@ -25,11 +26,8 @@ var actions = {
         keys.write(write);
     },
     "rgb_change": function (r, g, b) {
-        console.log("rgbnum: (".concat(r, ",").concat(g, ",").concat(b, ")"));
         var hsv = (0, lib_1.rgb2hsv)(r / 255, g / 255, b / 255);
-        console.log("hsvnum: (".concat(hsv[0], ",").concat(hsv[1], ",").concat(hsv[2], ")"));
-        var h = hsv[0] / 360;
-        h = (h * 255);
+        var h = (hsv[0] / 360) * 255;
         var s = hsv[1] * 255, v = hsv[2] * 255;
         h = (h & 0xFF);
         s = (s & 0xFF);
@@ -44,12 +42,32 @@ var actions = {
         keys.write(write);
     }
 };
+function IR(p, cb) {
+    var platform = process.platform;
+    var cmd = '';
+    switch (platform) {
+        case 'win32':
+            cmd = "tasklist";
+            break;
+        case 'darwin':
+            cmd = "ps -ax | grep ".concat(p);
+            break;
+        case 'linux':
+            cmd = "ps -A";
+            break;
+        default: break;
+    }
+    exec(cmd, function (err, stdout, stderr) {
+        cb(stdout.toLowerCase().indexOf(p.toLowerCase()) > -1);
+    });
+}
 // Functions that return custom versions of 'Operation' for different purposes
 var ops = {
     // If a process was specified then wait till it is on to turn the layer on
     // Otherwise just turn the layer on
     "layer_on": function () { return ({
         cb: function (status) {
+            console.log(this);
             if (status == true) {
                 actions["layer_on"](this.params.layer);
                 if (this.timer) {
@@ -62,24 +80,7 @@ var ops = {
             }
         },
         isRunning: function () {
-            var _this = this;
-            var platform = process.platform;
-            var cmd = '';
-            switch (platform) {
-                case 'win32':
-                    cmd = "tasklist";
-                    break;
-                case 'darwin':
-                    cmd = "ps -ax | grep ".concat(this.params.process);
-                    break;
-                case 'linux':
-                    cmd = "ps -A";
-                    break;
-                default: break;
-            }
-            exec(cmd, function (err, stdout, stderr) {
-                _this.cb(stdout.toLowerCase().indexOf(_this.params.process.toLowerCase()) > -1);
-            });
+            IR(this.params.process, this.cb.bind(this));
         },
         success: false
     }); },
@@ -99,24 +100,7 @@ var ops = {
             }
         },
         isRunning: function () {
-            var _this = this;
-            var platform = process.platform;
-            var cmd = '';
-            switch (platform) {
-                case 'win32':
-                    cmd = "tasklist";
-                    break;
-                case 'darwin':
-                    cmd = "ps -ax | grep ".concat(this.params.process);
-                    break;
-                case 'linux':
-                    cmd = "ps -A";
-                    break;
-                default: break;
-            }
-            exec(cmd, function (err, stdout, stderr) {
-                _this.cb(stdout.toLowerCase().indexOf(_this.params.process.toLowerCase()) > -1);
-            });
+            IR(this.params.process, this.cb.bind(this));
         },
         success: false
     }); },
@@ -135,24 +119,7 @@ var ops = {
             }
         },
         isRunning: function () {
-            var _this = this;
-            var platform = process.platform;
-            var cmd = '';
-            switch (platform) {
-                case 'win32':
-                    cmd = "tasklist";
-                    break;
-                case 'darwin':
-                    cmd = "ps -ax | grep ".concat(this.params.process);
-                    break;
-                case 'linux':
-                    cmd = "ps -A";
-                    break;
-                default: break;
-            }
-            exec(cmd, function (err, stdout, stderr) {
-                _this.cb(stdout.toLowerCase().indexOf(_this.params.process.toLowerCase()) > -1);
-            });
+            IR(this.params.process, this.cb.bind(this));
         },
         success: false
     }); },
@@ -174,57 +141,25 @@ var ops = {
             }
         },
         isRunning: function () {
-            var _this = this;
-            var platform = process.platform;
-            var cmd = '';
-            switch (platform) {
-                case 'win32':
-                    cmd = "tasklist";
-                    break;
-                case 'darwin':
-                    cmd = "ps -ax | grep ".concat(this.params.process);
-                    break;
-                case 'linux':
-                    cmd = "ps -A";
-                    break;
-                default: break;
-            }
-            exec(cmd, function (err, stdout, stderr) {
-                _this.cb(stdout.toLowerCase().indexOf(_this.params.process.toLowerCase()) > -1);
-            });
+            IR(this.params.process, this.cb.bind(this));
         },
         success: false
     }); },
     "rgb_change": function () { return ({
         cb: function (status) {
-            if ((status == true || status == undefined) && this.params.rgb) {
+            if ((status == true || status == undefined) && this.params.rgb && !this.success) {
                 var rgb = this.params.rgb.split(',');
                 var r = rgb[0], g = rgb[1], b = rgb[2];
                 actions["rgb_change"](+r, +g, +b);
+                this.success = true;
+                clearInterval(this.timer);
             }
             else if (!this.params.rgb) {
                 throw ('Need to specify RGB parameter');
             }
         },
         isRunning: function () {
-            var _this = this;
-            var platform = process.platform;
-            var cmd = '';
-            switch (platform) {
-                case 'win32':
-                    cmd = "tasklist";
-                    break;
-                case 'darwin':
-                    cmd = "ps -ax | grep ".concat(this.params.process);
-                    break;
-                case 'linux':
-                    cmd = "ps -A";
-                    break;
-                default: break;
-            }
-            exec(cmd, function (err, stdout, stderr) {
-                _this.cb(stdout.toLowerCase().indexOf(_this.params.process.toLowerCase()) > -1);
-            });
+            IR(this.params.process, this.cb.bind(this));
         },
         success: false
     }); },
@@ -235,24 +170,7 @@ var ops = {
             }
         },
         isRunning: function () {
-            var _this = this;
-            var platform = process.platform;
-            var cmd = '';
-            switch (platform) {
-                case 'win32':
-                    cmd = "tasklist";
-                    break;
-                case 'darwin':
-                    cmd = "ps -ax | grep ".concat(this.params.process);
-                    break;
-                case 'linux':
-                    cmd = "ps -A";
-                    break;
-                default: break;
-            }
-            exec(cmd, function (err, stdout, stderr) {
-                _this.cb(stdout.toLowerCase().indexOf(_this.params.process.toLowerCase()) > -1);
-            });
+            IR(this.params.process, this.cb.bind(this));
         },
         success: false
     }); }
@@ -267,61 +185,128 @@ var act = function (action) {
         throw (err);
     }
 };
-;
+var Action = {
+    action: '',
+    layer: null,
+    rgb: '',
+    process: '',
+    op: {}
+};
+var Args = {
+    process: '',
+    actions: []
+};
 var args = [];
 // node app.js --op -r audiorelay.exe -a layer_on_con -l 1
 var argv = process.argv.splice(2, process.argv.length).join(' ');
-var argvstart = argv.indexOf("--op");
-var argvpost = argv.trimStart().split('--op ').slice(argvstart, argv.length);
-argvpost = argvpost.splice(1, argvpost.length);
-var _loop_1 = function (arg) {
-    var argind = args.length + 1;
-    args[argind] = {};
-    var argarr = argvpost[arg].split(' ');
-    for (var a in argarr) {
-        switch (argarr[a]) {
-            case '-r':
-                args[argind].process = argarr[+a + 1];
-                break;
-            case '-a':
-                args[argind].action = argarr[+a + 1];
-                break;
-            case '-l':
-                args[argind].layer = +argarr[+a + 1];
-                break;
-            case '-rgb':
-                args[argind].rgb = argarr[+a + 1];
-                break;
-        }
+var argg = argv.split(' ');
+for (var arg in argg) {
+    if (argg[arg] == '-c') {
+        fs.readFile(argg[+arg + 1], function (err, data) {
+            var conf = JSON.parse(data).operations;
+            for (var op in conf) {
+                var curop = conf[op];
+                var obj = Args;
+                var _loop_1 = function (ac) {
+                    var curac = curop.actions[ac].action;
+                    var curlay = curop.actions[ac].layer;
+                    var currgb = curop.actions[ac].rgb;
+                    var curact = act(curac);
+                    if (curlay) {
+                        console.log('layer: ', curlay);
+                        curact.params.layer = curlay;
+                    }
+                    else {
+                        if (curac != "bootloader" && curac != "rgb_change") {
+                            throw ('A layer must be specified');
+                        }
+                    }
+                    if (currgb) {
+                        console.log('rgb: ', currgb);
+                        curact.params.rgb = currgb;
+                    }
+                    else {
+                        if (curac == "rgb_change") {
+                            throw ('Need to specify RGB parameter');
+                        }
+                    }
+                    if (curop.process) {
+                        curact.params.process = curop.process;
+                        curact.timer = setInterval(function () { return curact.isRunning(); }, 3000 + (250 * +ac));
+                    }
+                    else {
+                        console.log('else');
+                        curact.cb();
+                    }
+                };
+                for (var ac in curop.actions) {
+                    _loop_1(ac);
+                }
+            }
+        });
     }
-    args[argind].act = act(args[argind].action);
-    if (args[argind].layer) {
-        args[argind].act.params.layer = args[argind].layer;
-    }
-    else {
-        if (args[argind].action != "bootloader" && args[argind].action != "rgb_change") {
-            throw ('A layer must be specified');
-        }
-    }
-    if (args[argind].rgb) {
-        console.log('rgb: ', args[argind].rgb);
-        args[argind].act.params.rgb = args[argind].rgb;
-    }
-    else {
-        if (args[argind].action != "rgb_change") {
-            throw ('Need to specify RGB parameter');
-        }
-    }
-    if (args[argind].process) {
-        args[argind].act.params.process = args[argind].process;
-        args[argind].act.timer = setInterval(function () { return args[argind].act.isRunning(); }, 3000);
-    }
-    else {
-        console.log('else');
-        args[argind].act.cb();
-    }
-    console.log(argind, ': ', args[argind]);
-};
-for (var arg in argvpost) {
-    _loop_1(arg);
 }
+/*
+
+let argvstart = argv.indexOf("--op");
+let argvpost = argv.trimStart().split('--op ').slice(argvstart, argv.length);
+argvpost = argvpost.splice(1, argvpost.length);
+for (let arg in argvpost) {
+  const obj = Args;
+  let argarr = argvpost[arg].split(' ');
+  for (let a in argarr) {
+    switch (argarr[a]) {
+      case '-r':
+        obj.process = argarr[+a + 1];
+        break;
+      case '-a':
+        obj.actions.push(argarr[+a + 1]);
+        break;
+      case '-l':
+        obj.layers.push(+argarr[+a + 1]);
+        break;
+      case '-rgb':
+        obj.rgbs.push(argarr[+a + 1]);
+        break;
+    }
+  }
+
+  for (let ac in obj.actions) {
+    const curac: string = obj.actions[ac];
+    const curlay: number = obj.layers[ac];
+    const currgb: string = obj.rgbs[ac];
+    obj.acts[ac] = act(curac);
+    const curact = obj.acts[ac];
+
+    if (curlay) {
+      console.log('layer: ', curlay);
+      curact.params.layer = curlay;
+    } else {
+      if (curac != "bootloader" && curac != "rgb_change") {
+        throw ('A layer must be specified');
+      }
+    }
+
+    if (currgb) {
+      console.log('rgb: ', currgb);
+      curact.params.rgb = currgb;
+    } else {
+      if (curac == "rgb_change") {
+        throw ('Need to specify RGB parameter');
+      }
+    }
+
+    if (obj.process) {
+      curact.params.process = obj.process;
+      curact.timer = setInterval(() => curact.isRunning(), 3000);
+    } else {
+      console.log('else');
+      curact.cb();
+    }
+
+  }
+  console.log(obj);
+  args.push(obj);
+}
+
+*/

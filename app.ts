@@ -2,6 +2,7 @@ import { rgb2hsv } from "./lib";
 const HID = require('node-hid');
 var devices = HID.devices();
 const exec = require('child_process').exec;
+const fs = require('fs');
 
 var device = devices.find((e: any) => {
   return e.vendorId == 43670 && e.productId == 43689 && e.usagePage == 65424 && e.usage == 105
@@ -38,11 +39,8 @@ let actions: { [key: string]: Function } = {
     keys.write(write);
   },
   "rgb_change": (r: number, g: number, b: number): void => {
-    console.log(`rgbnum: (${r},${g},${b})`)
     let hsv = rgb2hsv(r / 255, g / 255, b / 255);
-    console.log(`hsvnum: (${hsv[0]},${hsv[1]},${hsv[2]})`)
-    let h = hsv[0] / 360;
-    h = (h * 255);
+    let h = (hsv[0] / 360) * 255;
     let s = hsv[1] * 255, v = hsv[2] * 255;
     h = (h & 0xFF);
     s = (s & 0xFF);
@@ -58,12 +56,27 @@ let actions: { [key: string]: Function } = {
   }
 }
 
+function IR(p: string, cb: Function) {
+  let platform = process.platform;
+  let cmd = '';
+  switch (platform) {
+    case 'win32': cmd = `tasklist`; break;
+    case 'darwin': cmd = `ps -ax | grep ${p}`; break;
+    case 'linux': cmd = `ps -A`; break;
+    default: break;
+  }
+  exec(cmd, (err, stdout, stderr) => {
+    cb(stdout.toLowerCase().indexOf(p.toLowerCase()) > -1);
+  });
+}
+
 // Functions that return custom versions of 'Operation' for different purposes
 let ops: { [key: string]: Function } = {
   // If a process was specified then wait till it is on to turn the layer on
   // Otherwise just turn the layer on
   "layer_on": (): Operation => ({
     cb(status?: boolean): void {
+      console.log(this);
       if (status == true) {
         actions["layer_on"](this.params.layer);
         if (this.timer) {
@@ -75,17 +88,7 @@ let ops: { [key: string]: Function } = {
       }
     },
     isRunning() {
-      let platform = process.platform;
-      let cmd = '';
-      switch (platform) {
-        case 'win32': cmd = `tasklist`; break;
-        case 'darwin': cmd = `ps -ax | grep ${this.params.process}`; break;
-        case 'linux': cmd = `ps -A`; break;
-        default: break;
-      }
-      exec(cmd, (err, stdout, stderr) => {
-        this.cb(stdout.toLowerCase().indexOf(this.params.process.toLowerCase()) > -1);
-      });
+      IR(this.params.process, this.cb.bind(this));
     },
     success: false
   }),
@@ -103,17 +106,7 @@ let ops: { [key: string]: Function } = {
       }
     },
     isRunning() {
-      let platform = process.platform;
-      let cmd = '';
-      switch (platform) {
-        case 'win32': cmd = `tasklist`; break;
-        case 'darwin': cmd = `ps -ax | grep ${this.params.process}`; break;
-        case 'linux': cmd = `ps -A`; break;
-        default: break;
-      }
-      exec(cmd, (err, stdout, stderr) => {
-        this.cb(stdout.toLowerCase().indexOf(this.params.process.toLowerCase()) > -1);
-      });
+      IR(this.params.process, this.cb.bind(this));
     },
     success: false
   }),
@@ -131,17 +124,7 @@ let ops: { [key: string]: Function } = {
       }
     },
     isRunning() {
-      let platform = process.platform;
-      let cmd = '';
-      switch (platform) {
-        case 'win32': cmd = `tasklist`; break;
-        case 'darwin': cmd = `ps -ax | grep ${this.params.process}`; break;
-        case 'linux': cmd = `ps -A`; break;
-        default: break;
-      }
-      exec(cmd, (err, stdout, stderr) => {
-        this.cb(stdout.toLowerCase().indexOf(this.params.process.toLowerCase()) > -1);
-      });
+      IR(this.params.process, this.cb.bind(this));
     },
     success: false
   }),
@@ -161,42 +144,24 @@ let ops: { [key: string]: Function } = {
       }
     },
     isRunning() {
-      let platform = process.platform;
-      let cmd = '';
-      switch (platform) {
-        case 'win32': cmd = `tasklist`; break;
-        case 'darwin': cmd = `ps -ax | grep ${this.params.process}`; break;
-        case 'linux': cmd = `ps -A`; break;
-        default: break;
-      }
-      exec(cmd, (err, stdout, stderr) => {
-        this.cb(stdout.toLowerCase().indexOf(this.params.process.toLowerCase()) > -1);
-      });
+      IR(this.params.process, this.cb.bind(this));
     },
     success: false
   }),
   "rgb_change": (): Operation => ({
     cb(status?: boolean): void {
-      if ((status == true || status == undefined) && this.params.rgb) {
+      if ((status == true || status == undefined) && this.params.rgb && !this.success) {
         const rgb = this.params.rgb.split(',');
         const [r, g, b] = rgb;
         actions["rgb_change"](+r, +g, +b);
+        this.success = true;
+        clearInterval(this.timer);
       } else if (!this.params.rgb) {
         throw ('Need to specify RGB parameter');
       }
     },
     isRunning() {
-      let platform = process.platform;
-      let cmd = '';
-      switch (platform) {
-        case 'win32': cmd = `tasklist`; break;
-        case 'darwin': cmd = `ps -ax | grep ${this.params.process}`; break;
-        case 'linux': cmd = `ps -A`; break;
-        default: break;
-      }
-      exec(cmd, (err, stdout, stderr) => {
-        this.cb(stdout.toLowerCase().indexOf(this.params.process.toLowerCase()) > -1);
-      });
+      IR(this.params.process, this.cb.bind(this));
     },
     success: false
   }),
@@ -207,17 +172,7 @@ let ops: { [key: string]: Function } = {
       }
     },
     isRunning() {
-      let platform = process.platform;
-      let cmd = '';
-      switch (platform) {
-        case 'win32': cmd = `tasklist`; break;
-        case 'darwin': cmd = `ps -ax | grep ${this.params.process}`; break;
-        case 'linux': cmd = `ps -A`; break;
-        default: break;
-      }
-      exec(cmd, (err, stdout, stderr) => {
-        this.cb(stdout.toLowerCase().indexOf(this.params.process.toLowerCase()) > -1);
-      });
+      IR(this.params.process, this.cb.bind(this));
     },
     success: false
   })
@@ -234,67 +189,133 @@ let act = (action: string): Operation => {
   }
 }
 
-interface Args {
-  process: string,
-  action: string,
-  layer: number,
-  rgb: string,
-  act: Operation,
-};
+const Action = {
+  action: '' as string,
+  layer: null as number,
+  rgb: '' as string,
+  process: '' as string,
+  op: <Operation>{}
+}
+type Action = typeof Action;
+
+const Args = {
+  process: '' as string,
+  actions: [] as Action[],
+}
+type Args = typeof Args;
 
 let args: Args[] = [];
 
 // node app.js --op -r audiorelay.exe -a layer_on_con -l 1
 let argv = process.argv.splice(2, process.argv.length).join(' ');
+
+let argg = argv.split(' ');
+for (let arg in argg) {
+  if (argg[arg] == '-c') {
+    fs.readFile(argg[+arg + 1], function(err, data: any) {
+      const conf = JSON.parse(data).operations;
+      for (let op in conf) {
+        const curop = conf[op];
+        const obj = Args;
+        for (let ac in curop.actions) {
+          const curac: string = curop.actions[ac].action;
+          const curlay: number = curop.actions[ac].layer;
+          const currgb: string = curop.actions[ac].rgb;
+          const curact = act(curac);
+
+          if (curlay) {
+            console.log('layer: ', curlay);
+            curact.params.layer = curlay;
+          } else {
+            if (curac != "bootloader" && curac != "rgb_change") {
+              throw ('A layer must be specified');
+            }
+          }
+
+          if (currgb) {
+            console.log('rgb: ', currgb);
+            curact.params.rgb = currgb;
+          } else {
+            if (curac == "rgb_change") {
+              throw ('Need to specify RGB parameter');
+            }
+          }
+
+          if (curop.process) {
+            curact.params.process = curop.process;
+            curact.timer = setInterval(() => curact.isRunning(), 3000 + (250 * +ac));
+          } else {
+            console.log('else');
+            curact.cb();
+          }
+
+        }
+      }
+    });
+  }
+}
+
+/*
+
 let argvstart = argv.indexOf("--op");
 let argvpost = argv.trimStart().split('--op ').slice(argvstart, argv.length);
 argvpost = argvpost.splice(1, argvpost.length);
 for (let arg in argvpost) {
-  let argind = args.length + 1;
-  args[argind] = <Args>{};
+  const obj = Args;
   let argarr = argvpost[arg].split(' ');
   for (let a in argarr) {
     switch (argarr[a]) {
       case '-r':
-        args[argind].process = argarr[+a + 1];
+        obj.process = argarr[+a + 1];
         break;
       case '-a':
-        args[argind].action = argarr[+a + 1];
+        obj.actions.push(argarr[+a + 1]);
         break;
       case '-l':
-        args[argind].layer = +argarr[+a + 1];
+        obj.layers.push(+argarr[+a + 1]);
         break;
       case '-rgb':
-        args[argind].rgb = argarr[+a + 1];
+        obj.rgbs.push(argarr[+a + 1]);
         break;
     }
   }
-  args[argind].act = act(args[argind].action);
 
-  if (args[argind].layer) {
-    args[argind].act.params.layer = args[argind].layer;
-  } else {
-    if (args[argind].action != "bootloader" && args[argind].action != "rgb_change") {
-      throw ('A layer must be specified');
+  for (let ac in obj.actions) {
+    const curac: string = obj.actions[ac];
+    const curlay: number = obj.layers[ac];
+    const currgb: string = obj.rgbs[ac];
+    obj.acts[ac] = act(curac);
+    const curact = obj.acts[ac];
+
+    if (curlay) {
+      console.log('layer: ', curlay);
+      curact.params.layer = curlay;
+    } else {
+      if (curac != "bootloader" && curac != "rgb_change") {
+        throw ('A layer must be specified');
+      }
     }
-  }
 
-  if (args[argind].rgb) {
-    console.log('rgb: ', args[argind].rgb);
-    args[argind].act.params.rgb = args[argind].rgb;
-  } else {
-    if (args[argind].action != "rgb_change") {
-      throw ('Need to specify RGB parameter');
+    if (currgb) {
+      console.log('rgb: ', currgb);
+      curact.params.rgb = currgb;
+    } else {
+      if (curac == "rgb_change") {
+        throw ('Need to specify RGB parameter');
+      }
     }
-  }
 
-  if (args[argind].process) {
-    args[argind].act.params.process = args[argind].process;
-    args[argind].act.timer = setInterval(() => args[argind].act.isRunning(), 3000);
-  } else {
-    console.log('else');
-    args[argind].act.cb();
-  }
+    if (obj.process) {
+      curact.params.process = obj.process;
+      curact.timer = setInterval(() => curact.isRunning(), 3000);
+    } else {
+      console.log('else');
+      curact.cb();
+    }
 
-  console.log(argind, ': ', args[argind]);
+  }
+  console.log(obj);
+  args.push(obj);
 }
+
+*/
