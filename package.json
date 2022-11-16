@@ -7,8 +7,9 @@
     "run": "npx tsc app.ts && node app.js",
     "test": "npx tsc app.ts && node app.js --op -r audiorelay.exe -a layer_on_con -l 1 --op -r cod.exe -a layer_on -l 3",
     "testlin": "npx tsc app.ts && node app.js --op -r hyper -a layer_switch -l 3 --op -r remmina -a layer_on -l 1",
+    "testlin1": "npx tsc app.ts && node app.js --op -a layer_on -l 3",
     "boot": "npx tsc app.ts && node app.js --op -a bootloader",
-    "rgb": "npx tsc app.ts && node app.js --op -a rgb_change"
+    "rgb": "npx tsc app.ts && node app.js --op -a rgb_change -rgb 255,255,0"
   },
   "repository": {
     "type": "git",
@@ -21,6 +22,7 @@
   },
   "homepage": "https://github.com/hiszd/qmkhid#readme",
   "dependencies": {
+    "colorsys": "^1.0.22",
     "node-hid": "^2.1.2"
   },
   "devDependencies": {

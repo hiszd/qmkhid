@@ -1,3 +1,6 @@
+"use strict";
+exports.__esModule = true;
+var lib_1 = require("./lib");
 var HID = require('node-hid');
 var devices = HID.devices();
 var exec = require('child_process').exec;
@@ -11,22 +14,27 @@ var keys = new HID.HID(device.path);
 var actions = {
     "layer_on": function (lay) {
         lay = (lay & 0xFF);
-        var write = [0x00, 0, lay, 1];
+        var write = [0x00, 0, 1, lay];
         console.log("hid write: ", write.toString());
         keys.write(write);
     },
     "layer_off": function (lay) {
         lay = (lay & 0xFF);
-        var write = [0x00, 0, lay, 0];
+        var write = [0x00, 0, 0, lay];
         console.log("hid write: ", write.toString());
         keys.write(write);
     },
-    "rgb_change": function (r, g, b, ind) {
-        r = (r & 0xFF);
-        g = (g & 0xFF);
-        b = (b & 0xFF);
-        ind = (ind & 0xFF);
-        var write = [0x00, 1, 0, r, g, b, ind];
+    "rgb_change": function (r, g, b) {
+        console.log("rgbnum: (".concat(r, ",").concat(g, ",").concat(b, ")"));
+        var hsv = (0, lib_1.rgb2hsv)(r / 255, g / 255, b / 255);
+        console.log("hsvnum: (".concat(hsv[0], ",").concat(hsv[1], ",").concat(hsv[2], ")"));
+        var h = hsv[0] / 360;
+        h = (h * 255);
+        var s = hsv[1] * 255, v = hsv[2] * 255;
+        h = (h & 0xFF);
+        s = (s & 0xFF);
+        v = (v & 0xFF);
+        var write = [0x00, 1, 0, h, s, v];
         console.log("hid write: ", write.toString());
         keys.write(write);
     },
@@ -43,13 +51,14 @@ var ops = {
     "layer_on": function () { return ({
         cb: function (status) {
             if (status == true) {
-                actions["layer_on"](this.layer);
+                actions["layer_on"](this.params.layer);
                 if (this.timer) {
                     clearInterval(this.timer);
                 }
             }
             else if (status == undefined) {
-                actions["layer_on"](this.layer);
+                console.log("layeronce");
+                actions["layer_on"](this.params.layer);
             }
         },
         isRunning: function () {
@@ -61,7 +70,7 @@ var ops = {
                     cmd = "tasklist";
                     break;
                 case 'darwin':
-                    cmd = "ps -ax | grep ".concat(this.process);
+                    cmd = "ps -ax | grep ".concat(this.params.process);
                     break;
                 case 'linux':
                     cmd = "ps -A";
@@ -69,7 +78,7 @@ var ops = {
                 default: break;
             }
             exec(cmd, function (err, stdout, stderr) {
-                _this.cb(stdout.toLowerCase().indexOf(_this.process.toLowerCase()) > -1);
+                _this.cb(stdout.toLowerCase().indexOf(_this.params.process.toLowerCase()) > -1);
             });
         },
         success: false
@@ -79,7 +88,7 @@ var ops = {
     "layer_on_con": function () { return ({
         cb: function (status) {
             if (status == true && !this.success) {
-                actions["layer_on"](this.layer);
+                actions["layer_on"](this.params.layer);
                 this.success = true;
             }
             else if (status == false && this.success) {
@@ -98,7 +107,7 @@ var ops = {
                     cmd = "tasklist";
                     break;
                 case 'darwin':
-                    cmd = "ps -ax | grep ".concat(this.process);
+                    cmd = "ps -ax | grep ".concat(this.params.process);
                     break;
                 case 'linux':
                     cmd = "ps -A";
@@ -106,7 +115,7 @@ var ops = {
                 default: break;
             }
             exec(cmd, function (err, stdout, stderr) {
-                _this.cb(stdout.toLowerCase().indexOf(_this.process.toLowerCase()) > -1);
+                _this.cb(stdout.toLowerCase().indexOf(_this.params.process.toLowerCase()) > -1);
             });
         },
         success: false
@@ -116,13 +125,13 @@ var ops = {
     "layer_off": function () { return ({
         cb: function (status) {
             if (status == true) {
-                actions["layer_off"](this.layer);
+                actions["layer_off"](this.params.layer);
                 if (this.timer) {
                     clearInterval(this.timer);
                 }
             }
             else if (status == undefined) {
-                actions["layer_off"](this.layer);
+                actions["layer_off"](this.params.layer);
             }
         },
         isRunning: function () {
@@ -134,7 +143,7 @@ var ops = {
                     cmd = "tasklist";
                     break;
                 case 'darwin':
-                    cmd = "ps -ax | grep ".concat(this.process);
+                    cmd = "ps -ax | grep ".concat(this.params.process);
                     break;
                 case 'linux':
                     cmd = "ps -A";
@@ -142,7 +151,7 @@ var ops = {
                 default: break;
             }
             exec(cmd, function (err, stdout, stderr) {
-                _this.cb(stdout.toLowerCase().indexOf(_this.process.toLowerCase()) > -1);
+                _this.cb(stdout.toLowerCase().indexOf(_this.params.process.toLowerCase()) > -1);
             });
         },
         success: false
@@ -153,11 +162,11 @@ var ops = {
     "layer_switch": function () { return ({
         cb: function (status) {
             if (status == true && !this.success) {
-                actions["layer_on"](this.layer);
+                actions["layer_on"](this.params.layer);
                 this.success = true;
             }
             else if (status == false && this.success) {
-                actions["layer_off"](this.layer);
+                actions["layer_off"](this.params.layer);
                 this.success = false;
             }
             else if (status == undefined) {
@@ -173,7 +182,7 @@ var ops = {
                     cmd = "tasklist";
                     break;
                 case 'darwin':
-                    cmd = "ps -ax | grep ".concat(this.process);
+                    cmd = "ps -ax | grep ".concat(this.params.process);
                     break;
                 case 'linux':
                     cmd = "ps -A";
@@ -181,15 +190,20 @@ var ops = {
                 default: break;
             }
             exec(cmd, function (err, stdout, stderr) {
-                _this.cb(stdout.toLowerCase().indexOf(_this.process.toLowerCase()) > -1);
+                _this.cb(stdout.toLowerCase().indexOf(_this.params.process.toLowerCase()) > -1);
             });
         },
         success: false
     }); },
     "rgb_change": function () { return ({
         cb: function (status) {
-            if (status == true || status == undefined) {
-                actions["rgb_change"](255, 0, 0, 1);
+            if ((status == true || status == undefined) && this.params.rgb) {
+                var rgb = this.params.rgb.split(',');
+                var r = rgb[0], g = rgb[1], b = rgb[2];
+                actions["rgb_change"](+r, +g, +b);
+            }
+            else if (!this.params.rgb) {
+                throw ('Need to specify RGB parameter');
             }
         },
         isRunning: function () {
@@ -201,7 +215,7 @@ var ops = {
                     cmd = "tasklist";
                     break;
                 case 'darwin':
-                    cmd = "ps -ax | grep ".concat(this.process);
+                    cmd = "ps -ax | grep ".concat(this.params.process);
                     break;
                 case 'linux':
                     cmd = "ps -A";
@@ -209,7 +223,7 @@ var ops = {
                 default: break;
             }
             exec(cmd, function (err, stdout, stderr) {
-                _this.cb(stdout.toLowerCase().indexOf(_this.process.toLowerCase()) > -1);
+                _this.cb(stdout.toLowerCase().indexOf(_this.params.process.toLowerCase()) > -1);
             });
         },
         success: false
@@ -229,7 +243,7 @@ var ops = {
                     cmd = "tasklist";
                     break;
                 case 'darwin':
-                    cmd = "ps -ax | grep ".concat(this.process);
+                    cmd = "ps -ax | grep ".concat(this.params.process);
                     break;
                 case 'linux':
                     cmd = "ps -A";
@@ -237,17 +251,16 @@ var ops = {
                 default: break;
             }
             exec(cmd, function (err, stdout, stderr) {
-                _this.cb(stdout.toLowerCase().indexOf(_this.process.toLowerCase()) > -1);
+                _this.cb(stdout.toLowerCase().indexOf(_this.params.process.toLowerCase()) > -1);
             });
         },
         success: false
     }); }
 };
-var act = function (action, layer) {
+var act = function (action) {
     try {
         var op = ops[action]();
-        if (layer)
-            op.layer = layer;
+        op.params = { layer: undefined, process: undefined, rgb: undefined };
         return op;
     }
     catch (err) {
@@ -276,21 +289,31 @@ var _loop_1 = function (arg) {
             case '-l':
                 args[argind].layer = +argarr[+a + 1];
                 break;
+            case '-rgb':
+                args[argind].rgb = argarr[+a + 1];
+                break;
         }
     }
-    args[argind].act = act(args[argind].action, args[argind].layer);
+    args[argind].act = act(args[argind].action);
     if (args[argind].layer) {
-        args[argind].act.layer = args[argind].layer;
+        args[argind].act.params.layer = args[argind].layer;
     }
     else {
-        if (args[argind].action == "bootloader" || args[argind].action == "rgb_change") {
-        }
-        else {
+        if (args[argind].action != "bootloader" && args[argind].action != "rgb_change") {
             throw ('A layer must be specified');
         }
     }
+    if (args[argind].rgb) {
+        console.log('rgb: ', args[argind].rgb);
+        args[argind].act.params.rgb = args[argind].rgb;
+    }
+    else {
+        if (args[argind].action != "rgb_change") {
+            throw ('Need to specify RGB parameter');
+        }
+    }
     if (args[argind].process) {
-        args[argind].act.process = args[argind].process;
+        args[argind].act.params.process = args[argind].process;
         args[argind].act.timer = setInterval(function () { return args[argind].act.isRunning(); }, 3000);
     }
     else {
