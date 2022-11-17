@@ -49,6 +49,30 @@ let actions: { [key: string]: Function } = {
     console.log("hid write: ", write.toString());
     keys.write(write);
   },
+  "rgb_ind": (r: number, g: number, b: number, i: number): void => {
+    let hsv = rgb2hsv(r / 255, g / 255, b / 255);
+    let h = (hsv[0] / 360) * 255;
+    let s = hsv[1] * 255, v = hsv[2] * 255;
+    h = (h & 0xFF);
+    s = (s & 0xFF);
+    v = (v & 0xFF);
+    r = (r & 0xFF);
+    g = (g & 0xFF);
+    b = (b & 0xFF);
+    i = (i & 0xFF);
+    const write = [0x00, 1, 1, r, g, b, i];
+    console.log("hid write: ", write.toString());
+    keys.write(write);
+  },
+  "rgb_notify": (r: number, g: number, b: number, i: number): void => {
+    let hsv = rgb2hsv(r / 255, g / 255, b / 255);
+    let h = (hsv[0] / 360) * 255;
+    let s = hsv[1] * 255, v = hsv[2] * 255;
+    const write = [0x00, 1, 3, h, s, v];
+    console.log("hid write: ", write.toString());
+    keys.write(write);
+    console.log(keys.readSync());
+  },
   "bootloader": (): void => {
     const write = [0x00, 99, 0, 0];
     console.log('bootloader');
@@ -165,6 +189,40 @@ let ops: { [key: string]: Function } = {
     },
     success: false
   }),
+  "rgb_ind": (): Operation => ({
+    cb(status?: boolean): void {
+      if ((status == true || status == undefined) && this.params.rgb && !this.success) {
+        const rgbi = this.params.rgb.split(',');
+        const [r, g, b, i] = rgbi;
+        actions["rgb_ind"](+r, +g, +b, +i);
+        this.success = true;
+        clearInterval(this.timer);
+      } else if (!this.params.rgb) {
+        throw ('Need to specify RGB parameter');
+      }
+    },
+    isRunning() {
+      IR(this.params.process, this.cb.bind(this));
+    },
+    success: false
+  }),
+  "rgb_notify": (): Operation => ({
+    cb(status?: boolean): void {
+      if ((status == true || status == undefined) && this.params.rgb && !this.success) {
+        const rgb = this.params.rgb.split(',');
+        const [r, g, b] = rgb;
+        actions["rgb_notify"](+r, +g, +b);
+        this.success = true;
+        clearInterval(this.timer);
+      } else if (!this.params.rgb) {
+        throw ('Need to specify RGB parameter');
+      }
+    },
+    isRunning() {
+      IR(this.params.process, this.cb.bind(this));
+    },
+    success: false
+  }),
   "bootloader": (): Operation => ({
     cb(status?: boolean): void {
       if (status == true || status == undefined) {
@@ -227,7 +285,7 @@ for (let arg in argg) {
             console.log('layer: ', curlay);
             curact.params.layer = curlay;
           } else {
-            if (curac != "bootloader" && curac != "rgb_change") {
+            if (curac != "bootloader" && curac != "rgb_change" && curac != "rgb_ind" && curac != "rgb_notify") {
               throw ('A layer must be specified');
             }
           }
@@ -319,3 +377,20 @@ for (let arg in argvpost) {
 }
 
 */
+
+
+// let readProc: "rgb_notify" | "";
+// let resetHSV: string;
+//
+// keys.on("data", function(data) {
+//   if (readProc) {
+//     switch (readProc) {
+//       case "rgb_notify":
+//         let [h, s, v] = resetHSV.split(',');
+//         return;
+//       default:
+//         return;
+//     }
+//   }
+// });
+

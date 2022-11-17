@@ -36,6 +36,30 @@ var actions = {
         console.log("hid write: ", write.toString());
         keys.write(write);
     },
+    "rgb_ind": function (r, g, b, i) {
+        var hsv = (0, lib_1.rgb2hsv)(r / 255, g / 255, b / 255);
+        var h = (hsv[0] / 360) * 255;
+        var s = hsv[1] * 255, v = hsv[2] * 255;
+        h = (h & 0xFF);
+        s = (s & 0xFF);
+        v = (v & 0xFF);
+        r = (r & 0xFF);
+        g = (g & 0xFF);
+        b = (b & 0xFF);
+        i = (i & 0xFF);
+        var write = [0x00, 1, 1, r, g, b, i];
+        console.log("hid write: ", write.toString());
+        keys.write(write);
+    },
+    "rgb_notify": function (r, g, b, i) {
+        var hsv = (0, lib_1.rgb2hsv)(r / 255, g / 255, b / 255);
+        var h = (hsv[0] / 360) * 255;
+        var s = hsv[1] * 255, v = hsv[2] * 255;
+        var write = [0x00, 1, 3, h, s, v];
+        console.log("hid write: ", write.toString());
+        keys.write(write);
+        console.log(keys.readSync());
+    },
     "bootloader": function () {
         var write = [0x00, 99, 0, 0];
         console.log('bootloader');
@@ -163,6 +187,42 @@ var ops = {
         },
         success: false
     }); },
+    "rgb_ind": function () { return ({
+        cb: function (status) {
+            if ((status == true || status == undefined) && this.params.rgb && !this.success) {
+                var rgbi = this.params.rgb.split(',');
+                var r = rgbi[0], g = rgbi[1], b = rgbi[2], i = rgbi[3];
+                actions["rgb_ind"](+r, +g, +b, +i);
+                this.success = true;
+                clearInterval(this.timer);
+            }
+            else if (!this.params.rgb) {
+                throw ('Need to specify RGB parameter');
+            }
+        },
+        isRunning: function () {
+            IR(this.params.process, this.cb.bind(this));
+        },
+        success: false
+    }); },
+    "rgb_notify": function () { return ({
+        cb: function (status) {
+            if ((status == true || status == undefined) && this.params.rgb && !this.success) {
+                var rgb = this.params.rgb.split(',');
+                var r = rgb[0], g = rgb[1], b = rgb[2];
+                actions["rgb_notify"](+r, +g, +b);
+                this.success = true;
+                clearInterval(this.timer);
+            }
+            else if (!this.params.rgb) {
+                throw ('Need to specify RGB parameter');
+            }
+        },
+        isRunning: function () {
+            IR(this.params.process, this.cb.bind(this));
+        },
+        success: false
+    }); },
     "bootloader": function () { return ({
         cb: function (status) {
             if (status == true || status == undefined) {
@@ -217,7 +277,7 @@ for (var arg in argg) {
                         curact.params.layer = curlay;
                     }
                     else {
-                        if (curac != "bootloader" && curac != "rgb_change") {
+                        if (curac != "bootloader" && curac != "rgb_change" && curac != "rgb_ind" && curac != "rgb_notify") {
                             throw ('A layer must be specified');
                         }
                     }
@@ -310,3 +370,17 @@ for (let arg in argvpost) {
 }
 
 */
+// let readProc: "rgb_notify" | "";
+// let resetHSV: string;
+//
+// keys.on("data", function(data) {
+//   if (readProc) {
+//     switch (readProc) {
+//       case "rgb_notify":
+//         let [h, s, v] = resetHSV.split(',');
+//         return;
+//       default:
+//         return;
+//     }
+//   }
+// });

@@ -8,8 +8,10 @@
     "test": "npx tsc app.ts && node app.js --op -r audiorelay.exe -a layer_on_con -l 1 --op -r cod.exe -a layer_on -l 3",
     "testlin": "npx tsc app.ts && node app.js --op -r hyper -a layer_switch -l 3 --op -r remmina -a layer_on -l 1",
     "testlin1": "npx tsc app.ts && node app.js --op -a layer_on -l 3",
-    "boot": "npx tsc app.ts && node app.js --op -a bootloader",
+    "boot": "npx tsc app.ts && node app.js -c boot.json",
     "rgb": "npx tsc app.ts && node app.js --op -a rgb_change -rgb 255,255,0",
+    "rgbind": "npx tsc app.ts && node app.js -c rgbtest1.json",
+    "rgbnot": "npx tsc app.ts && node app.js -c rgbnot.json",
     "conftest": "npx tsc app.ts && node app.js -c lintest.json"
   },
   "repository": {

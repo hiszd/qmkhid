@@ -1,0 +1,12 @@
+{
+  "operations": [
+    {
+      "actions": [
+        {
+          "action": "rgb_ind",
+          "rgb": "0,255,0,10"
+        }
+      ]
+    }
+  ]
+}

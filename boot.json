@@ -1,0 +1,12 @@
+{
+  "operations": [
+    {
+      "process": "",
+      "actions": [
+        {
+          "action": "bootloader"
+        }
+      ]
+    }
+  ]
+}
