@@ -50,12 +50,6 @@ let actions: { [key: string]: Function } = {
     keys.write(write);
   },
   "rgb_ind": (r: number, g: number, b: number, i: number): void => {
-    let hsv = rgb2hsv(r / 255, g / 255, b / 255);
-    let h = (hsv[0] / 360) * 255;
-    let s = hsv[1] * 255, v = hsv[2] * 255;
-    h = (h & 0xFF);
-    s = (s & 0xFF);
-    v = (v & 0xFF);
     r = (r & 0xFF);
     g = (g & 0xFF);
     b = (b & 0xFF);
@@ -64,14 +58,23 @@ let actions: { [key: string]: Function } = {
     console.log("hid write: ", write.toString());
     keys.write(write);
   },
-  "rgb_notify": (r: number, g: number, b: number, i: number): void => {
+  "rgb_notify": (r: number, g: number, b: number): void => {
     let hsv = rgb2hsv(r / 255, g / 255, b / 255);
     let h = (hsv[0] / 360) * 255;
     let s = hsv[1] * 255, v = hsv[2] * 255;
-    const write = [0x00, 1, 3, h, s, v];
+    h = (h & 0xFF);
+    s = (s & 0xFF);
+    v = (v & 0xFF);
+    const write = [0x00, 1, 2, h, s, v];
     console.log("hid write: ", write.toString());
     keys.write(write);
-    console.log(keys.readSync());
+    let oldhsv = keys.readSync().splice(0, 3);
+    console.log(oldhsv);
+    setTimeout(() => {
+      const write = [0x00, 1, 0, oldhsv[0], oldhsv[1], oldhsv[2]];
+      console.log("hid write: ", write.toString());
+      keys.write(write);
+    }, 1000)
   },
   "bootloader": (): void => {
     const write = [0x00, 99, 0, 0];

@@ -37,12 +37,6 @@ var actions = {
         keys.write(write);
     },
     "rgb_ind": function (r, g, b, i) {
-        var hsv = (0, lib_1.rgb2hsv)(r / 255, g / 255, b / 255);
-        var h = (hsv[0] / 360) * 255;
-        var s = hsv[1] * 255, v = hsv[2] * 255;
-        h = (h & 0xFF);
-        s = (s & 0xFF);
-        v = (v & 0xFF);
         r = (r & 0xFF);
         g = (g & 0xFF);
         b = (b & 0xFF);
@@ -51,14 +45,23 @@ var actions = {
         console.log("hid write: ", write.toString());
         keys.write(write);
     },
-    "rgb_notify": function (r, g, b, i) {
+    "rgb_notify": function (r, g, b) {
         var hsv = (0, lib_1.rgb2hsv)(r / 255, g / 255, b / 255);
         var h = (hsv[0] / 360) * 255;
         var s = hsv[1] * 255, v = hsv[2] * 255;
-        var write = [0x00, 1, 3, h, s, v];
+        h = (h & 0xFF);
+        s = (s & 0xFF);
+        v = (v & 0xFF);
+        var write = [0x00, 1, 2, h, s, v];
         console.log("hid write: ", write.toString());
         keys.write(write);
-        console.log(keys.readSync());
+        var oldhsv = keys.readSync().splice(0, 3);
+        console.log(oldhsv);
+        setTimeout(function () {
+            var write = [0x00, 1, 0, oldhsv[0], oldhsv[1], oldhsv[2]];
+            console.log("hid write: ", write.toString());
+            keys.write(write);
+        }, 1000);
     },
     "bootloader": function () {
         var write = [0x00, 99, 0, 0];
