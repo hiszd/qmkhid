@@ -36,12 +36,19 @@ var actions = {
         console.log("hid write: ", write.toString());
         keys.write(write);
     },
+    "rgb_all": function (r, g, b) {
+        r = (r & 0xFF);
+        g = (g & 0xFF);
+        b = (b & 0xFF);
+        var write = [0x00, 1, 3, r, g, b];
+        console.log("hid write: ", write.toString());
+        keys.write(write);
+    },
     "rgb_ind": function (r, g, b, i) {
         r = (r & 0xFF);
         g = (g & 0xFF);
         b = (b & 0xFF);
-        i = (i & 0xFF);
-        var write = [0x00, 1, 1, r, g, b, i];
+        var write = [0x00, 1, 1, r, g, b, (i[0] & 0xFF), (i[1] & 0xFF), (i[2] & 0xFF), (i[3] & 0xFF), (i[4] & 0xFF), (i[5] & 0xFF), (i[6] & 0xFF), (i[7] & 0xFF)];
         console.log("hid write: ", write.toString());
         keys.write(write);
     },
@@ -88,6 +95,7 @@ function IR(p, cb) {
         cb(stdout.toLowerCase().indexOf(p.toLowerCase()) > -1);
     });
 }
+var layerops = ["layer_on", "layer_off", "layer_switch", "layer_on_con"];
 // Functions that return custom versions of 'Operation' for different purposes
 var ops = {
     // If a process was specified then wait till it is on to turn the layer on
@@ -190,12 +198,34 @@ var ops = {
         },
         success: false
     }); },
+    "rgb_all": function () { return ({
+        cb: function (status) {
+            if ((status == true || status == undefined) && this.params.rgb && !this.success) {
+                var rgb = this.params.rgb.split(',');
+                var r = rgb[0], g = rgb[1], b = rgb[2];
+                actions["rgb_all"](+r, +g, +b);
+                this.success = true;
+                clearInterval(this.timer);
+            }
+            else if (!this.params.rgb) {
+                throw ('Need to specify RGB parameter');
+            }
+        },
+        isRunning: function () {
+            IR(this.params.process, this.cb.bind(this));
+        },
+        success: false
+    }); },
     "rgb_ind": function () { return ({
         cb: function (status) {
             if ((status == true || status == undefined) && this.params.rgb && !this.success) {
                 var rgbi = this.params.rgb.split(',');
-                var r = rgbi[0], g = rgbi[1], b = rgbi[2], i = rgbi[3];
-                actions["rgb_ind"](+r, +g, +b, +i);
+                var r = rgbi[0], g = rgbi[1], b = rgbi[2], i = rgbi.slice(3);
+                i = i.map(function (e) {
+                    return +e;
+                });
+                console.log(i);
+                actions["rgb_ind"](+r, +g, +b, i);
                 this.success = true;
                 clearInterval(this.timer);
             }
@@ -280,7 +310,7 @@ for (var arg in argg) {
                         curact.params.layer = curlay;
                     }
                     else {
-                        if (curac != "bootloader" && curac != "rgb_change" && curac != "rgb_ind" && curac != "rgb_notify") {
+                        if (layerops.indexOf(curac) != -1) {
                             throw ('A layer must be specified');
                         }
                     }
@@ -295,11 +325,13 @@ for (var arg in argg) {
                     }
                     if (curop.process) {
                         curact.params.process = curop.process;
-                        curact.timer = setInterval(function () { return curact.isRunning(); }, 3000 + (250 * +ac));
+                        var time = 3000 + (250 * +ac);
+                        curact.timer = setInterval(function () { return curact.isRunning(); }, time);
                     }
                     else {
+                        var time = 0 + (250 * +ac);
                         console.log('else');
-                        curact.cb();
+                        setTimeout(curact.cb.bind(curact), time);
                     }
                 };
                 for (var ac in curop.actions) {

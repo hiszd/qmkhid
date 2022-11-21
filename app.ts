@@ -49,12 +49,19 @@ let actions: { [key: string]: Function } = {
     console.log("hid write: ", write.toString());
     keys.write(write);
   },
-  "rgb_ind": (r: number, g: number, b: number, i: number): void => {
+  "rgb_all": (r: number, g: number, b: number): void => {
     r = (r & 0xFF);
     g = (g & 0xFF);
     b = (b & 0xFF);
-    i = (i & 0xFF);
-    const write = [0x00, 1, 1, r, g, b, i];
+    const write = [0x00, 1, 3, r, g, b];
+    console.log("hid write: ", write.toString());
+    keys.write(write);
+  },
+  "rgb_ind": (r: number, g: number, b: number, i: number[]): void => {
+    r = (r & 0xFF);
+    g = (g & 0xFF);
+    b = (b & 0xFF);
+    const write = [0x00, 1, 1, r, g, b, (i[0] & 0xFF), (i[1] & 0xFF), (i[2] & 0xFF), (i[3] & 0xFF), (i[4] & 0xFF), (i[5] & 0xFF), (i[6] & 0xFF), (i[7] & 0xFF)];
     console.log("hid write: ", write.toString());
     keys.write(write);
   },
@@ -96,6 +103,8 @@ function IR(p: string, cb: Function) {
     cb(stdout.toLowerCase().indexOf(p.toLowerCase()) > -1);
   });
 }
+
+let layerops = ["layer_on", "layer_off", "layer_switch", "layer_on_con"];
 
 // Functions that return custom versions of 'Operation' for different purposes
 let ops: { [key: string]: Function } = {
@@ -192,12 +201,33 @@ let ops: { [key: string]: Function } = {
     },
     success: false
   }),
+  "rgb_all": (): Operation => ({
+    cb(status?: boolean): void {
+      if ((status == true || status == undefined) && this.params.rgb && !this.success) {
+        const rgb = this.params.rgb.split(',');
+        const [r, g, b] = rgb;
+        actions["rgb_all"](+r, +g, +b);
+        this.success = true;
+        clearInterval(this.timer);
+      } else if (!this.params.rgb) {
+        throw ('Need to specify RGB parameter');
+      }
+    },
+    isRunning() {
+      IR(this.params.process, this.cb.bind(this));
+    },
+    success: false
+  }),
   "rgb_ind": (): Operation => ({
     cb(status?: boolean): void {
       if ((status == true || status == undefined) && this.params.rgb && !this.success) {
         const rgbi = this.params.rgb.split(',');
-        const [r, g, b, i] = rgbi;
-        actions["rgb_ind"](+r, +g, +b, +i);
+        let [r, g, b, ...i] = rgbi;
+        i = i.map((e: any) => {
+          return +e;
+        })
+        console.log(i);
+        actions["rgb_ind"](+ r, +g, +b, i);
         this.success = true;
         clearInterval(this.timer);
       } else if (!this.params.rgb) {
@@ -288,7 +318,7 @@ for (let arg in argg) {
             console.log('layer: ', curlay);
             curact.params.layer = curlay;
           } else {
-            if (curac != "bootloader" && curac != "rgb_change" && curac != "rgb_ind" && curac != "rgb_notify") {
+            if (layerops.indexOf(curac) != -1) {
               throw ('A layer must be specified');
             }
           }
@@ -304,10 +334,12 @@ for (let arg in argg) {
 
           if (curop.process) {
             curact.params.process = curop.process;
-            curact.timer = setInterval(() => curact.isRunning(), 3000 + (250 * +ac));
+            let time = 3000 + (250 * +ac);
+            curact.timer = setInterval(() => curact.isRunning(), time);
           } else {
+            let time = 0 + (250 * +ac);
             console.log('else');
-            curact.cb();
+            setTimeout(curact.cb.bind(curact), time);
           }
 
         }

@@ -12,6 +12,7 @@
     "rgb": "npx tsc app.ts && node app.js --op -a rgb_change -rgb 255,255,0",
     "rgbind": "npx tsc app.ts && node app.js -c rgbtest1.json",
     "rgbnot": "npx tsc app.ts && node app.js -c rgbnot.json",
+    "rgball": "npx tsc app.ts && node app.js -c rgbtest2.json",
     "conftest": "npx tsc app.ts && node app.js -c lintest.json",
     "lintest1": "npx tsc app.ts && node app.js -c lintest1.json"
   },
