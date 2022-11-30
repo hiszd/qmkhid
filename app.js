@@ -15,13 +15,13 @@ var keys = new HID.HID(device.path);
 var actions = {
     "layer_on": function (lay) {
         lay = (lay & 0xFF);
-        var write = [0x00, 0, 1, lay];
+        var write = [0x00, 0, 1, 5, lay];
         console.log("hid write: ", write.toString());
         keys.write(write);
     },
     "layer_off": function (lay) {
         lay = (lay & 0xFF);
-        var write = [0x00, 0, 0, lay];
+        var write = [0x00, 0, 0, 5, lay];
         console.log("hid write: ", write.toString());
         keys.write(write);
     },
@@ -32,7 +32,7 @@ var actions = {
         h = (h & 0xFF);
         s = (s & 0xFF);
         v = (v & 0xFF);
-        var write = [0x00, 1, 0, h, s, v];
+        var write = [0x00, 1, 0, 7, h, s, v];
         console.log("hid write: ", write.toString());
         keys.write(write);
     },
@@ -40,7 +40,7 @@ var actions = {
         r = (r & 0xFF);
         g = (g & 0xFF);
         b = (b & 0xFF);
-        var write = [0x00, 1, 3, r, g, b];
+        var write = [0x00, 1, 3, 7, r, g, b];
         console.log("hid write: ", write.toString());
         keys.write(write);
     },
@@ -48,7 +48,10 @@ var actions = {
         r = (r & 0xFF);
         g = (g & 0xFF);
         b = (b & 0xFF);
-        var write = [0x00, 1, 1, r, g, b, (i[0] & 0xFF), (i[1] & 0xFF), (i[2] & 0xFF), (i[3] & 0xFF), (i[4] & 0xFF), (i[5] & 0xFF), (i[6] & 0xFF), (i[7] & 0xFF)];
+        var write = [0x00, 1, 1, (7 + i.length), r, g, b];
+        for (var n = 0; n < i.length; n++) {
+            write.push(i[n] & 0xFF);
+        }
         console.log("hid write: ", write.toString());
         keys.write(write);
     },
@@ -59,24 +62,27 @@ var actions = {
         h = (h & 0xFF);
         s = (s & 0xFF);
         v = (v & 0xFF);
-        var write = [0x00, 1, 2, h, s, v];
+        var write = [0x00, 1, 2, 7, h, s, v];
         console.log("hid write: ", write.toString());
         keys.write(write);
         var oldhsv = keys.readSync().splice(0, 3);
         console.log(oldhsv);
         setTimeout(function () {
-            var write = [0x00, 1, 0, oldhsv[0], oldhsv[1], oldhsv[2]];
+            var write = [0x00, 1, 0, 7, oldhsv[0], oldhsv[1], oldhsv[2]];
             console.log("hid write: ", write.toString());
             keys.write(write);
         }, 1000);
     },
     "msg_send": function (msg) {
-        var write = [0x00, 2, msg.charCodeAt(0), msg.charCodeAt(1), msg.charCodeAt(2), msg.charCodeAt(3), msg.charCodeAt(4), msg.charCodeAt(5)];
+        var write = [0x00, 2, 0, (3 + msg.length)];
+        for (var char = 0; char < msg.length; char++) {
+            write.push(msg.charCodeAt(char));
+        }
         console.log("hid write: ", write.toString());
         keys.write(write);
     },
     "bootloader": function () {
-        var write = [0x00, 99, 0, 0];
+        var write = [0x00, 99, 0, 7];
         console.log('bootloader');
         keys.write(write);
     }
