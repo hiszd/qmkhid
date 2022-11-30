@@ -70,6 +70,11 @@ var actions = {
             keys.write(write);
         }, 1000);
     },
+    "msg_send": function (msg) {
+        var write = [0x00, 2, msg.charCodeAt(0), msg.charCodeAt(1), msg.charCodeAt(2), msg.charCodeAt(3), msg.charCodeAt(4), msg.charCodeAt(5)];
+        console.log("hid write: ", write.toString());
+        keys.write(write);
+    },
     "bootloader": function () {
         var write = [0x00, 99, 0, 0];
         console.log('bootloader');
@@ -256,6 +261,22 @@ var ops = {
         },
         success: false
     }); },
+    "msg_send": function () { return ({
+        cb: function (status) {
+            if ((status == true || status == undefined) && this.params.msg && !this.success) {
+                actions["msg_send"](this.params.msg);
+                this.success = true;
+                clearInterval(this.timer);
+            }
+            else if (!this.params.msg) {
+                throw ('Need to specify message parameter');
+            }
+        },
+        isRunning: function () {
+            IR(this.params.process, this.cb.bind(this));
+        },
+        success: false
+    }); },
     "bootloader": function () { return ({
         cb: function (status) {
             if (status == true || status == undefined) {
@@ -271,7 +292,7 @@ var ops = {
 var act = function (action) {
     try {
         var op = ops[action]();
-        op.params = { layer: undefined, process: undefined, rgb: undefined };
+        op.params = { layer: undefined, process: undefined, rgb: undefined, msg: undefined };
         return op;
     }
     catch (err) {
@@ -304,6 +325,7 @@ for (var arg in argg) {
                     var curac = curop.actions[ac].action;
                     var curlay = curop.actions[ac].layer;
                     var currgb = curop.actions[ac].rgb;
+                    var curmsg = curop.actions[ac].msg;
                     var curact = act(curac);
                     if (curlay) {
                         console.log('layer: ', curlay);
@@ -321,6 +343,15 @@ for (var arg in argg) {
                     else {
                         if (curac == "rgb_change") {
                             throw ('Need to specify RGB parameter');
+                        }
+                    }
+                    if (curmsg) {
+                        console.log('msg: ', curmsg);
+                        curact.params.msg = curmsg;
+                    }
+                    else {
+                        if (curac == "msg_send") {
+                            throw ('Need to specify message parameter');
                         }
                     }
                     if (curop.process) {

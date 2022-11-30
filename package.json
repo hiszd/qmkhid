@@ -14,7 +14,8 @@
     "rgbnot": "npx tsc app.ts && node app.js -c rgbnot.json",
     "rgball": "npx tsc app.ts && node app.js -c rgbtest2.json",
     "conftest": "npx tsc app.ts && node app.js -c lintest.json",
-    "lintest1": "npx tsc app.ts && node app.js -c lintest1.json"
+    "lintest1": "npx tsc app.ts && node app.js -c lintest1.json",
+    "msgtest": "npx tsc app.ts && node app.js -c msgtest1.json"
   },
   "repository": {
     "type": "git",

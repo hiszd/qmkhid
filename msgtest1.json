@@ -1,0 +1,12 @@
+{
+  "operations": [
+    {
+      "actions": [
+        {
+          "action": "msg_send",
+          "msg": "Char"
+        }
+      ]
+    }
+  ]
+}

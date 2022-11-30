@@ -19,6 +19,7 @@ interface Operation {
     layer?: number,
     process?: string,
     rgb?: string
+    msg?: string
   }
 }
 
@@ -82,6 +83,11 @@ let actions: { [key: string]: Function } = {
       console.log("hid write: ", write.toString());
       keys.write(write);
     }, 1000)
+  },
+  "msg_send": (msg: string): void => {
+    const write = [0x00, 2, msg.charCodeAt(0), msg.charCodeAt(1), msg.charCodeAt(2), msg.charCodeAt(3), msg.charCodeAt(4), msg.charCodeAt(5)];
+    console.log("hid write: ", write.toString());
+    keys.write(write);
   },
   "bootloader": (): void => {
     const write = [0x00, 99, 0, 0];
@@ -256,6 +262,21 @@ let ops: { [key: string]: Function } = {
     },
     success: false
   }),
+  "msg_send": (): Operation => ({
+    cb(status?: boolean): void {
+      if ((status == true || status == undefined) && this.params.msg && !this.success) {
+        actions["msg_send"](this.params.msg);
+        this.success = true;
+        clearInterval(this.timer);
+      } else if (!this.params.msg) {
+        throw ('Need to specify message parameter');
+      }
+    },
+    isRunning() {
+      IR(this.params.process, this.cb.bind(this));
+    },
+    success: false
+  }),
   "bootloader": (): Operation => ({
     cb(status?: boolean): void {
       if (status == true || status == undefined) {
@@ -272,7 +293,7 @@ let ops: { [key: string]: Function } = {
 let act = (action: string): Operation => {
   try {
     let op = ops[action]();
-    op.params = { layer: undefined, process: undefined, rgb: undefined }
+    op.params = { layer: undefined, process: undefined, rgb: undefined, msg: undefined }
     return op;
   }
   catch (err) {
@@ -312,6 +333,7 @@ for (let arg in argg) {
           const curac: string = curop.actions[ac].action;
           const curlay: number = curop.actions[ac].layer;
           const currgb: string = curop.actions[ac].rgb;
+          const curmsg: string = curop.actions[ac].msg;
           const curact = act(curac);
 
           if (curlay) {
@@ -329,6 +351,15 @@ for (let arg in argg) {
           } else {
             if (curac == "rgb_change") {
               throw ('Need to specify RGB parameter');
+            }
+          }
+
+          if (curmsg) {
+            console.log('msg: ', curmsg);
+            curact.params.msg = curmsg;
+          } else {
+            if (curac == "msg_send") {
+              throw ('Need to specify message parameter');
             }
           }
 
