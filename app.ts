@@ -88,7 +88,7 @@ let actions: { [key: string]: Function } = {
     }, 1000)
   },
   "msg_send": (msg: string): void => {
-    const write = [0x00, 2, 0, (3 + msg.length)];
+    const write = [0x00, 2, 0, (3 + msg.length), 0, 0, 0];
     for (let char = 0; char < msg.length; char++) {
       write.push(msg.charCodeAt(char));
     }
