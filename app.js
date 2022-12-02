@@ -414,7 +414,7 @@ for (var arg in argg) {
                         curact.timer = setInterval(function () { return curact.isRunning(); }, time);
                     }
                     else {
-                        var time = 0 + (250 * +ac);
+                        var time = 0 + (110 * +ac);
                         console.log('else');
                         setTimeout(curact.cb.bind(curact), time);
                     }

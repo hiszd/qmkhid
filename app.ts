@@ -412,7 +412,7 @@ for (let arg in argg) {
             let time = 3000 + (250 * +ac);
             curact.timer = setInterval(() => curact.isRunning(), time);
           } else {
-            let time = 0 + (250 * +ac);
+            let time = 0 + (115 * +ac);
             console.log('else');
             setTimeout(curact.cb.bind(curact), time);
           }
