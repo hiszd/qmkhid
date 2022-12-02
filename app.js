@@ -6,7 +6,7 @@ var devices = HID.devices();
 var exec = require('child_process').exec;
 var fs = require('fs');
 var device = devices.find(function (e) {
-    return e.vendorId == 43670 && e.productId == 43689 && e.usagePage == 65424 && e.usage == 105;
+    return e.usagePage == 65376 && e.usage == 97;
 });
 var keys = new HID.HID(device.path);
 // Actual messages sent to the HID device
