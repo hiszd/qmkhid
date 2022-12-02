@@ -1,29 +1,67 @@
 "use strict";
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
+};
 exports.__esModule = true;
 var lib_1 = require("./lib");
-var HID = require('node-hid');
-var devices = HID.devices();
+var node_hid_1 = require("node-hid");
+// const HID = require('node-hid');
+var devices = (0, node_hid_1.devices)();
 var exec = require('child_process').exec;
 var fs = require('fs');
 var device = devices.find(function (e) {
     return e.usagePage == 65376 && e.usage == 97;
 });
-var keys = new HID.HID(device.path);
+var keys = new node_hid_1.HID(device.path);
+function HIDWrite(dev, msg) {
+    var div = 29;
+    var packageamt = Math.ceil(msg.length / div);
+    console.log("total: ", packageamt);
+    var curpack = 1;
+    var bytes_sent = 0;
+    var msgs = [[]];
+    for (var n = 0; n < packageamt; n++) {
+        var msgnew = [];
+        if (n == 0) {
+            msgnew = msg.slice((n * div), (div) + (div * n));
+            console.log("s: ", n * div, "e: ", (div) + (div * n));
+        }
+        else {
+            msgnew = msg.slice((n * div), (n * div) + (div * n));
+            console.log("s: ", n * div, "e: ", (n * div) + (div * n));
+        }
+        console.log("msgnew: ", msgnew);
+        msgs[n] = __spreadArray([n + 1, packageamt, 0], msgnew, true);
+        msgs[n][2] = msgs[n].length;
+    }
+    for (var i = 0; i < msgs.length; i++) {
+        var write = msgs[i];
+        console.log("write ", write.length, ": ", curpack, write);
+        dev.write(write);
+        curpack = curpack + 1;
+    }
+}
 // Actual messages sent to the HID device
 // Format is like this:
 // [0x00, reqtype, command, data1, data2, data3]
 var actions = {
     "layer_on": function (lay) {
         lay = (lay & 0xFF);
-        var write = [0x00, 0, 1, 5, lay];
-        console.log("hid write: ", write.toString());
-        keys.write(write);
+        var write = [0x00, 0, 1, lay];
+        // console.log("hid write: ", write.toString());
+        HIDWrite(keys, write);
     },
     "layer_off": function (lay) {
         lay = (lay & 0xFF);
-        var write = [0x00, 0, 0, 5, lay];
-        console.log("hid write: ", write.toString());
-        keys.write(write);
+        var write = [0x00, 0, 0, lay];
+        // console.log("hid write: ", write.toString());
+        HIDWrite(keys, write);
     },
     "rgb_change": function (r, g, b) {
         var hsv = (0, lib_1.rgb2hsv)(r / 255, g / 255, b / 255);
@@ -32,28 +70,28 @@ var actions = {
         h = (h & 0xFF);
         s = (s & 0xFF);
         v = (v & 0xFF);
-        var write = [0x00, 1, 0, 7, h, s, v];
-        console.log("hid write: ", write.toString());
-        keys.write(write);
+        var write = [0x00, 1, 0, h, s, v];
+        // console.log("hid write: ", write.toString());
+        HIDWrite(keys, write);
     },
     "rgb_all": function (r, g, b) {
         r = (r & 0xFF);
         g = (g & 0xFF);
         b = (b & 0xFF);
-        var write = [0x00, 1, 3, 7, r, g, b];
-        console.log("hid write: ", write.toString());
-        keys.write(write);
+        var write = [0x00, 1, 3, r, g, b];
+        // console.log("hid write: ", write.toString());
+        HIDWrite(keys, write);
     },
     "rgb_ind": function (r, g, b, i) {
         r = (r & 0xFF);
         g = (g & 0xFF);
         b = (b & 0xFF);
-        var write = [0x00, 1, 1, (7 + i.length), r, g, b];
+        var write = [0x00, 1, 1, r, g, b];
         for (var n = 0; n < i.length; n++) {
             write.push(i[n] & 0xFF);
         }
-        console.log("hid write: ", write.toString());
-        keys.write(write);
+        // console.log("hid write: ", write.toString());
+        HIDWrite(keys, write);
     },
     "rgb_notify": function (r, g, b) {
         var hsv = (0, lib_1.rgb2hsv)(r / 255, g / 255, b / 255);
@@ -62,29 +100,29 @@ var actions = {
         h = (h & 0xFF);
         s = (s & 0xFF);
         v = (v & 0xFF);
-        var write = [0x00, 1, 2, 7, h, s, v];
+        var write = [0x00, 1, 2, h, s, v];
         console.log("hid write: ", write.toString());
-        keys.write(write);
+        HIDWrite(keys, write);
         var oldhsv = keys.readSync().splice(0, 3);
         console.log(oldhsv);
         setTimeout(function () {
-            var write = [0x00, 1, 0, 7, oldhsv[0], oldhsv[1], oldhsv[2]];
+            var write = [0x00, 1, 0, oldhsv[0], oldhsv[1], oldhsv[2]];
             console.log("hid write: ", write.toString());
-            keys.write(write);
+            HIDWrite(keys, write);
         }, 1000);
     },
     "msg_send": function (msg) {
-        var write = [0x00, 2, 0, (3 + msg.length), 0, 0, 0];
+        var write = [0x00, 2, 0, 0, 0, 0];
         for (var char = 0; char < msg.length; char++) {
             write.push(msg.charCodeAt(char));
         }
         console.log("hid write: ", write.toString());
-        keys.write(write);
+        HIDWrite(keys, write);
     },
     "bootloader": function () {
-        var write = [0x00, 99, 0, 7];
+        var write = [0x00, 99, 0];
         console.log('bootloader');
-        keys.write(write);
+        HIDWrite(keys, write);
     }
 };
 function IR(p, cb) {
@@ -113,9 +151,10 @@ var ops = {
     // Otherwise just turn the layer on
     "layer_on": function () { return ({
         cb: function (status) {
+            var _this = this;
             console.log(this);
             if (status == true) {
-                actions["layer_on"](this.params.layer);
+                setTimeout(function () { actions["layer_on"](_this.params.layer); }, this.params.delay);
                 if (this.timer) {
                     clearInterval(this.timer);
                 }
@@ -134,8 +173,9 @@ var ops = {
     // Then stay active and wait until the application is closed and launched again
     "layer_on_con": function () { return ({
         cb: function (status) {
+            var _this = this;
             if (status == true && !this.success) {
-                actions["layer_on"](this.params.layer);
+                setTimeout(function () { actions["layer_on"](_this.params.layer); }, this.params.delay);
                 this.success = true;
             }
             else if (status == false && this.success) {
@@ -154,14 +194,15 @@ var ops = {
     // Otherwise just turn the layer off
     "layer_off": function () { return ({
         cb: function (status) {
+            var _this = this;
             if (status == true) {
-                actions["layer_off"](this.params.layer);
+                setTimeout(function () { actions["layer_off"](_this.params.layer); }, this.params.delay);
                 if (this.timer) {
                     clearInterval(this.timer);
                 }
             }
             else if (status == undefined) {
-                actions["layer_off"](this.params.layer);
+                setTimeout(function () { actions["layer_off"](_this.params.layer); }, this.params.delay);
             }
         },
         isRunning: function () {
@@ -174,12 +215,13 @@ var ops = {
     // then wait till it is launched again
     "layer_switch": function () { return ({
         cb: function (status) {
+            var _this = this;
             if (status == true && !this.success) {
-                actions["layer_on"](this.params.layer);
+                setTimeout(function () { actions["layer_on"](_this.params.layer); }, this.params.delay);
                 this.success = true;
             }
             else if (status == false && this.success) {
-                actions["layer_off"](this.params.layer);
+                setTimeout(function () { actions["layer_off"](_this.params.layer); }, this.params.delay);
                 this.success = false;
             }
             else if (status == undefined) {
@@ -195,8 +237,8 @@ var ops = {
         cb: function (status) {
             if ((status == true || status == undefined) && this.params.rgb && !this.success) {
                 var rgb = this.params.rgb.split(',');
-                var r = rgb[0], g = rgb[1], b = rgb[2];
-                actions["rgb_change"](+r, +g, +b);
+                var r_1 = rgb[0], g_1 = rgb[1], b_1 = rgb[2];
+                setTimeout(function () { actions["rgb_change"](+r_1, +g_1, +b_1); }, this.params.delay);
                 this.success = true;
                 clearInterval(this.timer);
             }
@@ -213,8 +255,8 @@ var ops = {
         cb: function (status) {
             if ((status == true || status == undefined) && this.params.rgb && !this.success) {
                 var rgb = this.params.rgb.split(',');
-                var r = rgb[0], g = rgb[1], b = rgb[2];
-                actions["rgb_all"](+r, +g, +b);
+                var r_2 = rgb[0], g_2 = rgb[1], b_2 = rgb[2];
+                setTimeout(function () { actions["rgb_all"](+r_2, +g_2, +b_2); }, this.params.delay);
                 this.success = true;
                 clearInterval(this.timer);
             }
@@ -231,12 +273,12 @@ var ops = {
         cb: function (status) {
             if ((status == true || status == undefined) && this.params.rgb && !this.success) {
                 var rgbi = this.params.rgb.split(',');
-                var r = rgbi[0], g = rgbi[1], b = rgbi[2], i = rgbi.slice(3);
-                i = i.map(function (e) {
+                var r_3 = rgbi[0], g_3 = rgbi[1], b_3 = rgbi[2], i_1 = rgbi.slice(3);
+                i_1 = i_1.map(function (e) {
                     return +e;
                 });
-                console.log(i);
-                actions["rgb_ind"](+r, +g, +b, i);
+                console.log(i_1);
+                setTimeout(function () { actions["rgb_ind"](+r_3, +g_3, +b_3, i_1); }, this.params.delay);
                 this.success = true;
                 clearInterval(this.timer);
             }
@@ -253,8 +295,8 @@ var ops = {
         cb: function (status) {
             if ((status == true || status == undefined) && this.params.rgb && !this.success) {
                 var rgb = this.params.rgb.split(',');
-                var r = rgb[0], g = rgb[1], b = rgb[2];
-                actions["rgb_notify"](+r, +g, +b);
+                var r_4 = rgb[0], g_4 = rgb[1], b_4 = rgb[2];
+                setTimeout(function () { actions["rgb_notify"](+r_4, +g_4, +b_4); }, this.params.delay);
                 this.success = true;
                 clearInterval(this.timer);
             }
@@ -269,8 +311,9 @@ var ops = {
     }); },
     "msg_send": function () { return ({
         cb: function (status) {
+            var _this = this;
             if ((status == true || status == undefined) && this.params.msg && !this.success) {
-                actions["msg_send"](this.params.msg);
+                setTimeout(function () { actions["msg_send"](_this.params.msg); }, this.params.delay);
                 this.success = true;
                 clearInterval(this.timer);
             }
@@ -286,7 +329,7 @@ var ops = {
     "bootloader": function () { return ({
         cb: function (status) {
             if (status == true || status == undefined) {
-                actions["bootloader"]();
+                setTimeout(function () { actions["bootloader"](); }, this.params.delay);
             }
         },
         isRunning: function () {
@@ -298,7 +341,7 @@ var ops = {
 var act = function (action) {
     try {
         var op = ops[action]();
-        op.params = { layer: undefined, process: undefined, rgb: undefined, msg: undefined };
+        op.params = { layer: undefined, process: undefined, rgb: undefined, msg: undefined, delay: 0 };
         return op;
     }
     catch (err) {
@@ -332,6 +375,7 @@ for (var arg in argg) {
                     var curlay = curop.actions[ac].layer;
                     var currgb = curop.actions[ac].rgb;
                     var curmsg = curop.actions[ac].msg;
+                    var curdel = curop.actions[ac].delay | 0;
                     var curact = act(curac);
                     if (curlay) {
                         console.log('layer: ', curlay);
@@ -359,6 +403,10 @@ for (var arg in argg) {
                         if (curac == "msg_send") {
                             throw ('Need to specify message parameter');
                         }
+                    }
+                    if (curdel) {
+                        console.log('del: ', curdel);
+                        curact.params.delay = curdel;
                     }
                     if (curop.process) {
                         curact.params.process = curop.process;

@@ -1,6 +1,7 @@
 import { rgb2hsv } from "./lib";
-const HID = require('node-hid');
-var devices = HID.devices();
+import { HID, devices as HIDDevices } from 'node-hid';
+// const HID = require('node-hid');
+var devices = HIDDevices();
 const exec = require('child_process').exec;
 const fs = require('fs');
 
@@ -8,7 +9,37 @@ var device = devices.find((e: any) => {
   return e.usagePage == 65376 && e.usage == 97
 })
 
-var keys = new HID.HID(device.path);
+var keys = new HID(device.path);
+
+
+function HIDWrite(dev: HID, msg: number[]) {
+  const div = 29;
+  const packageamt = Math.ceil(msg.length / div);
+  console.log("total: ", packageamt);
+  let curpack = 1;
+  let bytes_sent = 0;
+  let msgs = [[]];
+  for (let n = 0; n < packageamt; n++) {
+    let msgnew = [];
+    if (n == 0) {
+      msgnew = msg.slice((n * div), (div) + (div * n));
+      console.log("s: ", n * div, "e: ", (div) + (div * n));
+    } else {
+      msgnew = msg.slice((n * div), (n * div) + (div * n));
+      console.log("s: ", n * div, "e: ", (n * div) + (div * n));
+    }
+    console.log("msgnew: ", msgnew);
+    msgs[n] = [n + 1, packageamt, 0, ...msgnew];
+    msgs[n][2] = msgs[n].length;
+  }
+  for (let i = 0; i < msgs.length; i++) {
+    let write = msgs[i];
+    console.log("write ", write.length, ": ", curpack, write);
+    dev.write(write);
+    curpack = curpack + 1;
+  }
+}
+
 
 interface Operation {
   cb(status?: boolean): void;
@@ -18,8 +49,9 @@ interface Operation {
   params?: {
     layer?: number,
     process?: string,
-    rgb?: string
-    msg?: string
+    rgb?: string,
+    msg?: string,
+    delay?: number
   }
 }
 
@@ -29,15 +61,15 @@ interface Operation {
 let actions: { [key: string]: Function } = {
   "layer_on": (lay: number): void => {
     lay = (lay & 0xFF);
-    const write = [0x00, 0, 1, 5, lay];
-    console.log("hid write: ", write.toString());
-    keys.write(write);
+    const write = [0x00, 0, 1, lay];
+    // console.log("hid write: ", write.toString());
+    HIDWrite(keys, write);
   },
   "layer_off": (lay: number): void => {
     lay = (lay & 0xFF);
-    const write = [0x00, 0, 0, 5, lay];
-    console.log("hid write: ", write.toString());
-    keys.write(write);
+    const write = [0x00, 0, 0, lay];
+    // console.log("hid write: ", write.toString());
+    HIDWrite(keys, write);
   },
   "rgb_change": (r: number, g: number, b: number): void => {
     let hsv = rgb2hsv(r / 255, g / 255, b / 255);
@@ -46,28 +78,28 @@ let actions: { [key: string]: Function } = {
     h = (h & 0xFF);
     s = (s & 0xFF);
     v = (v & 0xFF);
-    const write = [0x00, 1, 0, 7, h, s, v];
-    console.log("hid write: ", write.toString());
-    keys.write(write);
+    const write = [0x00, 1, 0, h, s, v];
+    // console.log("hid write: ", write.toString());
+    HIDWrite(keys, write);
   },
   "rgb_all": (r: number, g: number, b: number): void => {
     r = (r & 0xFF);
     g = (g & 0xFF);
     b = (b & 0xFF);
-    const write = [0x00, 1, 3, 7, r, g, b];
-    console.log("hid write: ", write.toString());
-    keys.write(write);
+    const write = [0x00, 1, 3, r, g, b];
+    // console.log("hid write: ", write.toString());
+    HIDWrite(keys, write);
   },
   "rgb_ind": (r: number, g: number, b: number, i: number[]): void => {
     r = (r & 0xFF);
     g = (g & 0xFF);
     b = (b & 0xFF);
-    const write = [0x00, 1, 1, (7 + i.length), r, g, b];
+    const write = [0x00, 1, 1, r, g, b];
     for (let n = 0; n < i.length; n++) {
       write.push(i[n] & 0xFF);
     }
-    console.log("hid write: ", write.toString());
-    keys.write(write);
+    // console.log("hid write: ", write.toString());
+    HIDWrite(keys, write);
   },
   "rgb_notify": (r: number, g: number, b: number): void => {
     let hsv = rgb2hsv(r / 255, g / 255, b / 255);
@@ -76,29 +108,29 @@ let actions: { [key: string]: Function } = {
     h = (h & 0xFF);
     s = (s & 0xFF);
     v = (v & 0xFF);
-    const write = [0x00, 1, 2, 7, h, s, v];
+    const write = [0x00, 1, 2, h, s, v];
     console.log("hid write: ", write.toString());
-    keys.write(write);
+    HIDWrite(keys, write);
     let oldhsv = keys.readSync().splice(0, 3);
     console.log(oldhsv);
     setTimeout(() => {
-      const write = [0x00, 1, 0, 7, oldhsv[0], oldhsv[1], oldhsv[2]];
+      const write = [0x00, 1, 0, oldhsv[0], oldhsv[1], oldhsv[2]];
       console.log("hid write: ", write.toString());
-      keys.write(write);
+      HIDWrite(keys, write);
     }, 1000)
   },
   "msg_send": (msg: string): void => {
-    const write = [0x00, 2, 0, (3 + msg.length), 0, 0, 0];
+    const write = [0x00, 2, 0, 0, 0, 0];
     for (let char = 0; char < msg.length; char++) {
       write.push(msg.charCodeAt(char));
     }
     console.log("hid write: ", write.toString());
-    keys.write(write);
+    HIDWrite(keys, write);
   },
   "bootloader": (): void => {
-    const write = [0x00, 99, 0, 7];
+    const write = [0x00, 99, 0];
     console.log('bootloader');
-    keys.write(write);
+    HIDWrite(keys, write);
   }
 }
 
@@ -126,7 +158,7 @@ let ops: { [key: string]: Function } = {
     cb(status?: boolean): void {
       console.log(this);
       if (status == true) {
-        actions["layer_on"](this.params.layer);
+        setTimeout(() => { actions["layer_on"](this.params.layer); }, this.params.delay);
         if (this.timer) {
           clearInterval(this.timer);
         }
@@ -145,7 +177,7 @@ let ops: { [key: string]: Function } = {
   "layer_on_con": (): Operation => ({
     cb(status?: boolean): void {
       if (status == true && !this.success) {
-        actions["layer_on"](this.params.layer);
+        setTimeout(() => { actions["layer_on"](this.params.layer); }, this.params.delay);
         this.success = true;
       } else if (status == false && this.success) {
         this.success = false;
@@ -163,12 +195,12 @@ let ops: { [key: string]: Function } = {
   "layer_off": (): Operation => ({
     cb(status?: boolean): void {
       if (status == true) {
-        actions["layer_off"](this.params.layer);
+        setTimeout(() => { actions["layer_off"](this.params.layer); }, this.params.delay);
         if (this.timer) {
           clearInterval(this.timer);
         }
       } else if (status == undefined) {
-        actions["layer_off"](this.params.layer);
+        setTimeout(() => { actions["layer_off"](this.params.layer); }, this.params.delay);
       }
     },
     isRunning() {
@@ -182,10 +214,10 @@ let ops: { [key: string]: Function } = {
   "layer_switch": (): Operation => ({
     cb(status?: boolean): void {
       if (status == true && !this.success) {
-        actions["layer_on"](this.params.layer);
+        setTimeout(() => { actions["layer_on"](this.params.layer); }, this.params.delay);
         this.success = true;
       } else if (status == false && this.success) {
-        actions["layer_off"](this.params.layer);
+        setTimeout(() => { actions["layer_off"](this.params.layer); }, this.params.delay);
         this.success = false;
       } else if (status == undefined) {
         throw ("Cannot switch without process specified")
@@ -201,7 +233,7 @@ let ops: { [key: string]: Function } = {
       if ((status == true || status == undefined) && this.params.rgb && !this.success) {
         const rgb = this.params.rgb.split(',');
         const [r, g, b] = rgb;
-        actions["rgb_change"](+r, +g, +b);
+        setTimeout(() => { actions["rgb_change"](+r, +g, +b); }, this.params.delay);
         this.success = true;
         clearInterval(this.timer);
       } else if (!this.params.rgb) {
@@ -218,7 +250,7 @@ let ops: { [key: string]: Function } = {
       if ((status == true || status == undefined) && this.params.rgb && !this.success) {
         const rgb = this.params.rgb.split(',');
         const [r, g, b] = rgb;
-        actions["rgb_all"](+r, +g, +b);
+        setTimeout(() => { actions["rgb_all"](+r, +g, +b); }, this.params.delay);
         this.success = true;
         clearInterval(this.timer);
       } else if (!this.params.rgb) {
@@ -239,7 +271,7 @@ let ops: { [key: string]: Function } = {
           return +e;
         })
         console.log(i);
-        actions["rgb_ind"](+ r, +g, +b, i);
+        setTimeout(() => { actions["rgb_ind"](+r, +g, +b, i); }, this.params.delay);
         this.success = true;
         clearInterval(this.timer);
       } else if (!this.params.rgb) {
@@ -256,7 +288,7 @@ let ops: { [key: string]: Function } = {
       if ((status == true || status == undefined) && this.params.rgb && !this.success) {
         const rgb = this.params.rgb.split(',');
         const [r, g, b] = rgb;
-        actions["rgb_notify"](+r, +g, +b);
+        setTimeout(() => { actions["rgb_notify"](+r, +g, +b); }, this.params.delay);
         this.success = true;
         clearInterval(this.timer);
       } else if (!this.params.rgb) {
@@ -271,7 +303,7 @@ let ops: { [key: string]: Function } = {
   "msg_send": (): Operation => ({
     cb(status?: boolean): void {
       if ((status == true || status == undefined) && this.params.msg && !this.success) {
-        actions["msg_send"](this.params.msg);
+        setTimeout(() => { actions["msg_send"](this.params.msg); }, this.params.delay);
         this.success = true;
         clearInterval(this.timer);
       } else if (!this.params.msg) {
@@ -286,7 +318,7 @@ let ops: { [key: string]: Function } = {
   "bootloader": (): Operation => ({
     cb(status?: boolean): void {
       if (status == true || status == undefined) {
-        actions["bootloader"]();
+        setTimeout(() => { actions["bootloader"](); }, this.params.delay);
       }
     },
     isRunning() {
@@ -299,7 +331,7 @@ let ops: { [key: string]: Function } = {
 let act = (action: string): Operation => {
   try {
     let op = ops[action]();
-    op.params = { layer: undefined, process: undefined, rgb: undefined, msg: undefined }
+    op.params = { layer: undefined, process: undefined, rgb: undefined, msg: undefined, delay: 0 }
     return op;
   }
   catch (err) {
@@ -340,6 +372,7 @@ for (let arg in argg) {
           const curlay: number = curop.actions[ac].layer;
           const currgb: string = curop.actions[ac].rgb;
           const curmsg: string = curop.actions[ac].msg;
+          const curdel: number = curop.actions[ac].delay | 0;
           const curact = act(curac);
 
           if (curlay) {
@@ -367,6 +400,11 @@ for (let arg in argg) {
             if (curac == "msg_send") {
               throw ('Need to specify message parameter');
             }
+          }
+
+          if (curdel) {
+            console.log('del: ', curdel);
+            curact.params.delay = curdel;
           }
 
           if (curop.process) {
