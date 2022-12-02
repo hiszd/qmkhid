@@ -74,7 +74,7 @@ var actions = {
         }, 1000);
     },
     "msg_send": function (msg) {
-        var write = [0x00, 2, 0, (3 + msg.length)];
+        var write = [0x00, 2, 0, (3 + msg.length), 0, 0, 0];
         for (var char = 0; char < msg.length; char++) {
             write.push(msg.charCodeAt(char));
         }
