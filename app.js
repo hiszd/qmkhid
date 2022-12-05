@@ -11,14 +11,52 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 exports.__esModule = true;
 var lib_1 = require("./lib");
 var node_hid_1 = require("node-hid");
-// const HID = require('node-hid');
+var commandLineArgs = require("command-line-args");
 var devices = (0, node_hid_1.devices)();
 var exec = require('child_process').exec;
 var fs = require('fs');
 var device = devices.find(function (e) {
+    // Custom usage 0x69 and standard usagePage 0xFF60
     return e.usagePage == 65376 && e.usage == 97;
 });
 var keys = new node_hid_1.HID(device.path);
+// node app.js config -p msgtest1.json
+// node app.js exec -p msgtest1.json
+// node app.js --op -r audiorelay.exe -a layer_on_con -l 1
+var argvs = process.argv.splice(2, process.argv.length).join(' ');
+var opArgs = argvs.split('--op');
+var commandOptions = [];
+var secondaryOptions = [];
+var commandDefinitions = [
+    { name: 'command', type: String, defaultOption: true }
+];
+for (var i in opArgs) {
+    commandOptions[i] = commandLineArgs(commandDefinitions, { stopAtFirstUnknown: true, argv: opArgs[i].split(' ') });
+    var params = commandOptions[i]._unknown || [];
+    console.log("\ncommandOptions[".concat(i, "]\n============"));
+    console.log(commandOptions[i]);
+    // second - parse the config command options
+    if (commandOptions[i].command === 'config') {
+        var configDefinitions = [
+            { name: 'path', alias: 'p', type: String }
+        ];
+        secondaryOptions[i] = commandLineArgs(configDefinitions, { argv: params });
+        console.log("\nsecondaryOptions[".concat(i, "]\n============"));
+        console.log(secondaryOptions[i]);
+        break;
+    }
+    else if (commandOptions[i].command === 'exec') {
+        var execDefinitions = [
+            { name: 'rgb', alias: 'r', type: String },
+            { name: 'msg', alias: 'm', type: String },
+            { name: 'proc', alias: 'p', type: String },
+            { name: 'action', alias: 'a', type: String }
+        ];
+        secondaryOptions[i] = commandLineArgs(execDefinitions, { argv: params });
+        console.log("secondaryOptions[".concat(i, "]\n============"));
+        console.log(secondaryOptions[i]);
+    }
+}
 function HIDWrite(dev, msg) {
     var div = 29;
     var packageamt = Math.ceil(msg.length / div);
@@ -414,7 +452,7 @@ for (var arg in argg) {
                         curact.timer = setInterval(function () { return curact.isRunning(); }, time);
                     }
                     else {
-                        var time = 0 + (110 * +ac);
+                        var time = 0 + (115 * +ac);
                         console.log('else');
                         setTimeout(curact.cb.bind(curact), time);
                     }

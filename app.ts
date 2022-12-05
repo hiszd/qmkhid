@@ -1,16 +1,138 @@
 import { rgb2hsv } from "./lib";
 import { HID, devices as HIDDevices } from 'node-hid';
-// const HID = require('node-hid');
+import * as commandLineArgs from 'command-line-args';
 var devices = HIDDevices();
 const exec = require('child_process').exec;
 const fs = require('fs');
 
 var device = devices.find((e: any) => {
+  // Custom usage 0x69 and standard usagePage 0xFF60
   return e.usagePage == 65376 && e.usage == 97
 })
 
 var keys = new HID(device.path);
 
+// node app.js config -p msgtest1.json
+// node app.js exec -p msgtest1.json
+
+// node app.js --op -r audiorelay.exe -a layer_on_con -l 1
+let argvs = process.argv.splice(2, process.argv.length).join(' ');
+let opArgs: Array<String> = argvs.split('--op');
+let commandOptions: Array<commandLineArgs.CommandLineOptions> = [];
+let secondaryOptions: Array<commandLineArgs.CommandLineOptions> = [];
+
+const commandDefinitions = [
+  { name: 'command', type: String, defaultOption: true }
+];
+
+for (const i in opArgs) {
+  commandOptions[i] = commandLineArgs(commandDefinitions, { stopAtFirstUnknown: true, argv: opArgs[i].split(' ') });
+  const params = commandOptions[i]._unknown || [];
+  console.log(`\ncommandOptions[${i}]\n============`);
+  console.log(commandOptions[i]);
+
+  // second - parse the config command options
+  if (commandOptions[i].command === 'config') {
+    const configDefinitions = [
+      { name: 'path', alias: 'p', type: String }
+    ];
+    secondaryOptions[i] = commandLineArgs(configDefinitions, { argv: params });
+
+    console.log(`\nsecondaryOptions[${i}]\n============`);
+    console.log(secondaryOptions[i]);
+    /*
+    fs.readFile(secondaryOptions[i].path, function(err, data: any) {
+      try {
+        const conf = JSON.parse(data).operations;
+        for (let op in conf) {
+          const curop = conf[op];
+          // const obj = Args;
+          for (let ac in curop.actions) {
+            const curac: string = curop.actions[ac].action;
+            const curlay: number = curop.actions[ac].layer;
+            const currgb: string = curop.actions[ac].rgb;
+            const curmsg: string = curop.actions[ac].msg;
+            const curdel: number = curop.actions[ac].delay | 0;
+            const curact = act(curac);
+
+            if (curlay) {
+              console.log('layer: ', curlay);
+              curact.params.layer = curlay;
+            } else {
+              if (layerops.indexOf(curac) != -1) {
+                throw ('A layer must be specified');
+              }
+            }
+
+            if (currgb) {
+              console.log('rgb: ', currgb);
+              curact.params.rgb = currgb;
+            } else {
+              if (curac == "rgb_change") {
+                throw ('Need to specify RGB parameter');
+              }
+            }
+
+            if (curmsg) {
+              console.log('msg: ', curmsg);
+              curact.params.msg = curmsg;
+            } else {
+              if (curac == "msg_send") {
+                throw ('Need to specify message parameter');
+              }
+            }
+
+            if (curdel) {
+              console.log('del: ', curdel);
+              curact.params.delay = curdel;
+            }
+
+            if (curop.process) {
+              curact.params.process = curop.process;
+              let time = 3000 + (250 * +ac);
+              curact.timer = setInterval(() => curact.isRunning(), time);
+            } else {
+              let time = 0 + (115 * +ac);
+              console.log('else');
+              setTimeout(curact.cb.bind(curact), time);
+            }
+          }
+        }
+
+      } catch (err) {
+        throw err;
+      }
+
+    });
+    */
+
+    break;
+  } else if (commandOptions[i].command === 'exec') {
+    // if we are using the command line to exec actions
+    const actionDefinitions = [
+      { name: 'action', type: String, defaultOption: true }
+    ];
+    const actionOptions = commandLineArgs(actionDefinitions, { argv: params });
+    const actoptsunk = actionOptions._unknown || [];
+    let currentAction = act(actionOptions.action);
+
+    let execDefinitions = [];
+    let execOptions: commandLineArgs.CommandLineOptions;
+
+    if (actionOptions.action === 'rgb_ind') {
+      execDefinitions = [
+        { name: 'rgb', alias: 'r', type: String },
+        { name: 'msg', alias: 'm', type: String },
+        { name: 'proc', alias: 'p', type: String },
+      ];
+    }
+    execOptions = commandLineArgs(execDefinitions, { argv: actoptsunk });
+  }
+
+  console.log(`\secondaryOptions[${i}]\n============`);
+  console.log(secondaryOptions[i]);
+}
+}
 
 function HIDWrite(dev: HID, msg: number[]) {
   const div = 29;
