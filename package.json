@@ -18,7 +18,8 @@
     "conftest": "npx tsc app.ts && node app.js -c lintest.json",
     "lintest1": "npx tsc app.ts && node app.js -c lintest1.json",
     "msgtest": "npx tsc app.ts && node app.js -c msgtest1.json",
-    "argtest": "npx tsc app.ts && node app.js exec --rgb 0,255,0"
+    "argtest": "npx tsc app.ts && node app.js exec rgb_ind --rgb 0,255,0,0",
+    "argtest1": "npx tsc app.ts && node app.js exec --op rgb_ind --rgb 0,255,0,0 --op msg_send --msg 'Hello World'"
   },
   "repository": {
     "type": "git",

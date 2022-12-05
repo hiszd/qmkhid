@@ -11,135 +11,11 @@ var device = devices.find((e: any) => {
 })
 
 var keys = new HID(device.path);
-
-// node app.js config -p msgtest1.json
-// node app.js exec -p msgtest1.json
-
-// node app.js --op -r audiorelay.exe -a layer_on_con -l 1
-let argvs = process.argv.splice(2, process.argv.length).join(' ');
-let opArgs: Array<String> = argvs.split('--op');
-let commandOptions: Array<commandLineArgs.CommandLineOptions> = [];
-let secondaryOptions: Array<commandLineArgs.CommandLineOptions> = [];
-
-const commandDefinitions = [
-  { name: 'command', type: String, defaultOption: true }
-];
-
-for (const i in opArgs) {
-  commandOptions[i] = commandLineArgs(commandDefinitions, { stopAtFirstUnknown: true, argv: opArgs[i].split(' ') });
-  const params = commandOptions[i]._unknown || [];
-  console.log(`\ncommandOptions[${i}]\n============`);
-  console.log(commandOptions[i]);
-
-  // second - parse the config command options
-  if (commandOptions[i].command === 'config') {
-    const configDefinitions = [
-      { name: 'path', alias: 'p', type: String }
-    ];
-    secondaryOptions[i] = commandLineArgs(configDefinitions, { argv: params });
-
-    console.log(`\nsecondaryOptions[${i}]\n============`);
-    console.log(secondaryOptions[i]);
-    /*
-    fs.readFile(secondaryOptions[i].path, function(err, data: any) {
-      try {
-        const conf = JSON.parse(data).operations;
-        for (let op in conf) {
-          const curop = conf[op];
-          // const obj = Args;
-          for (let ac in curop.actions) {
-            const curac: string = curop.actions[ac].action;
-            const curlay: number = curop.actions[ac].layer;
-            const currgb: string = curop.actions[ac].rgb;
-            const curmsg: string = curop.actions[ac].msg;
-            const curdel: number = curop.actions[ac].delay | 0;
-            const curact = act(curac);
-
-            if (curlay) {
-              console.log('layer: ', curlay);
-              curact.params.layer = curlay;
-            } else {
-              if (layerops.indexOf(curac) != -1) {
-                throw ('A layer must be specified');
-              }
-            }
-
-            if (currgb) {
-              console.log('rgb: ', currgb);
-              curact.params.rgb = currgb;
-            } else {
-              if (curac == "rgb_change") {
-                throw ('Need to specify RGB parameter');
-              }
-            }
-
-            if (curmsg) {
-              console.log('msg: ', curmsg);
-              curact.params.msg = curmsg;
-            } else {
-              if (curac == "msg_send") {
-                throw ('Need to specify message parameter');
-              }
-            }
-
-            if (curdel) {
-              console.log('del: ', curdel);
-              curact.params.delay = curdel;
-            }
-
-            if (curop.process) {
-              curact.params.process = curop.process;
-              let time = 3000 + (250 * +ac);
-              curact.timer = setInterval(() => curact.isRunning(), time);
-            } else {
-              let time = 0 + (115 * +ac);
-              console.log('else');
-              setTimeout(curact.cb.bind(curact), time);
-            }
-          }
-        }
-
-      } catch (err) {
-        throw err;
-      }
-
-    });
-    */
-
-    break;
-  } else if (commandOptions[i].command === 'exec') {
-    // if we are using the command line to exec actions
-    const actionDefinitions = [
-      { name: 'action', type: String, defaultOption: true }
-    ];
-    const actionOptions = commandLineArgs(actionDefinitions, { argv: params });
-    const actoptsunk = actionOptions._unknown || [];
-    let currentAction = act(actionOptions.action);
-
-    let execDefinitions = [];
-    let execOptions: commandLineArgs.CommandLineOptions;
-
-    if (actionOptions.action === 'rgb_ind') {
-      execDefinitions = [
-        { name: 'rgb', alias: 'r', type: String },
-        { name: 'msg', alias: 'm', type: String },
-        { name: 'proc', alias: 'p', type: String },
-      ];
-    }
-    execOptions = commandLineArgs(execDefinitions, { argv: actoptsunk });
-  }
-
-  console.log(`\secondaryOptions[${i}]\n============`);
-  console.log(secondaryOptions[i]);
-}
-}
-
 function HIDWrite(dev: HID, msg: number[]) {
   const div = 29;
   const packageamt = Math.ceil(msg.length / div);
   console.log("total: ", packageamt);
   let curpack = 1;
-  let bytes_sent = 0;
   let msgs = [[]];
   for (let n = 0; n < packageamt; n++) {
     let msgnew = [];
@@ -450,10 +326,44 @@ let ops: { [key: string]: Function } = {
   })
 }
 
-let act = (action: string): Operation => {
+let act = (action: string, params: Object, index: number): Operation => {
   try {
-    let op = ops[action]();
-    op.params = { layer: undefined, process: undefined, rgb: undefined, msg: undefined, delay: 0 }
+    let op: Operation = ops[action]();
+    op.params = params // { layer: undefined, process: undefined, rgb: undefined, msg: undefined, delay: 0 }
+    if (op.params.layer) {
+      console.log('layer: ', op.params.layer);
+    } else {
+      if (layerops.indexOf(action) != -1) {
+        throw ('A layer must be specified');
+      }
+    }
+    if (op.params.rgb) {
+      console.log('rgb: ', op.params.rgb);
+    } else {
+      if (action == "rgb_change") {
+        throw ('Need to specify RGB parameter');
+      }
+    }
+    if (op.params.msg) {
+      console.log('msg: ', op.params.msg);
+    } else {
+      if (action == "msg_send") {
+        throw ('Need to specify message parameter');
+      }
+    }
+    if (op.params.delay) {
+      console.log('del: ', op.params.delay);
+    }
+
+    if (op.params.process) {
+      let time = 3000 + (250 * index);
+      op.timer = setInterval(() => op.isRunning(), time);
+    } else {
+      let time = 0 + (115 * index);
+      console.log('else');
+      setTimeout(op.cb.bind(op), time);
+    }
+
     return op;
   }
   catch (err) {
@@ -461,168 +371,117 @@ let act = (action: string): Operation => {
   }
 }
 
-const Action = {
-  action: '' as string,
-  layer: null as number,
-  rgb: '' as string,
-  process: '' as string,
-  op: <Operation>{}
-}
-type Action = typeof Action;
-
-const Args = {
-  process: '' as string,
-  actions: [] as Action[],
-}
-type Args = typeof Args;
-
-let args: Args[] = [];
+// node app.js exec -p msgtest1.json
 
 // node app.js --op -r audiorelay.exe -a layer_on_con -l 1
-let argv = process.argv.splice(2, process.argv.length).join(' ');
+let argvs = process.argv.splice(2, process.argv.length);
+console.log(argvs);
+let commandOptions: commandLineArgs.CommandLineOptions;
+let secondaryOptions: Array<commandLineArgs.CommandLineOptions> = [];
 
-let argg = argv.split(' ');
-for (let arg in argg) {
-  if (argg[arg] == '-c') {
-    fs.readFile(argg[+arg + 1], function(err, data: any) {
-      const conf = JSON.parse(data).operations;
-      for (let op in conf) {
-        const curop = conf[op];
-        const obj = Args;
-        for (let ac in curop.actions) {
-          const curac: string = curop.actions[ac].action;
-          const curlay: number = curop.actions[ac].layer;
-          const currgb: string = curop.actions[ac].rgb;
-          const curmsg: string = curop.actions[ac].msg;
-          const curdel: number = curop.actions[ac].delay | 0;
-          const curact = act(curac);
+const commandDefinitions = [
+  { name: 'command', type: String, defaultOption: true }
+];
 
-          if (curlay) {
-            console.log('layer: ', curlay);
-            curact.params.layer = curlay;
-          } else {
-            if (layerops.indexOf(curac) != -1) {
-              throw ('A layer must be specified');
-            }
-          }
+commandOptions = commandLineArgs(commandDefinitions, { stopAtFirstUnknown: true, argv: argvs });
+const params = commandOptions._unknown || [];
+console.log(`\ncommandOptions\n============`);
+console.log(commandOptions);
 
-          if (currgb) {
-            console.log('rgb: ', currgb);
-            curact.params.rgb = currgb;
-          } else {
-            if (curac == "rgb_change") {
-              throw ('Need to specify RGB parameter');
-            }
-          }
+// second - parse the config command options
+if (commandOptions.command === 'config') {
+  const configDefinitions = [
+    { name: 'path', alias: 'p', type: String }
+  ];
+  secondaryOptions[0] = commandLineArgs(configDefinitions, { argv: params });
 
-          if (curmsg) {
-            console.log('msg: ', curmsg);
-            curact.params.msg = curmsg;
-          } else {
-            if (curac == "msg_send") {
-              throw ('Need to specify message parameter');
-            }
-          }
-
-          if (curdel) {
-            console.log('del: ', curdel);
-            curact.params.delay = curdel;
-          }
-
-          if (curop.process) {
-            curact.params.process = curop.process;
-            let time = 3000 + (250 * +ac);
-            curact.timer = setInterval(() => curact.isRunning(), time);
-          } else {
-            let time = 0 + (115 * +ac);
-            console.log('else');
-            setTimeout(curact.cb.bind(curact), time);
-          }
-
-        }
+  console.log(`\nsecondaryOptions[${0}]\n============`);
+  console.log(secondaryOptions[0]);
+  fs.readFile(secondaryOptions[0].path, function(err: any, data: any) {
+    if (err) {
+      throw err;
+    }
+    const conf = JSON.parse(data).operations;
+    for (let op in conf) {
+      const curop = conf[op];
+      for (let ac in curop.actions) {
+        let curobj = curop.actions[ac];
+        curobj.action = act(curobj.action, curop, +ac);
       }
-    });
+    }
+  });
+} else if (commandOptions.command === 'exec') {
+  let opArgs = [];
+  params.forEach((e, i, a) => {
+    if (e === '--op') {
+      opArgs.push(a.slice(i + 1, a.slice(i + 1, a.length).indexOf('--op') + 1 || a.length));
+    }
+  });
+  console.log('opArgs ');
+  console.log(opArgs);
+
+  for (const i in opArgs) {
+    let argos = opArgs[i];
+
+    // if we are using the command line to exec actions
+    const actionDefinitions = [
+      { name: 'action', type: String, defaultOption: true }
+    ];
+    secondaryOptions[i] = commandLineArgs(actionDefinitions, { argv: argos, stopAtFirstUnknown: true });
+    const actoptsunk = secondaryOptions[i]._unknown || [];
+
+    let execDefinitions = [];
+    let execOptions: commandLineArgs.CommandLineOptions;
+
+    execDefinitions = [
+      { name: 'rgb', alias: 'r', type: String },
+      { name: 'msg', alias: 'm', type: String },
+      { name: 'process', alias: 'p', type: String },
+      { name: 'delay', alias: 'd', type: Number },
+      { name: 'layer', alias: 'l', type: Number },
+    ];
+    execOptions = commandLineArgs(execDefinitions, { argv: actoptsunk });
+    let reqargs = [];
+    switch (secondaryOptions[i].action) {
+      case 'layer_on':
+        reqargs = ['layer']
+        break;
+      case 'layer_on_con':
+        reqargs = ['layer', 'process']
+        break;
+      case 'layer_off':
+        reqargs = ['layer']
+        break;
+      case 'layer_switch':
+        reqargs = ['layer', 'process']
+        break;
+      case 'rgb_change':
+        reqargs = ['rgb']
+        break;
+      case 'rgb_all':
+        reqargs = ['rgb']
+        break;
+      case 'rgb_ind':
+        reqargs = ['rgb']
+        break;
+      case 'rgb_notify':
+        reqargs = ['rgb']
+        break;
+      case 'msg_send':
+        reqargs = ['msg'];
+        break;
+      case 'bootloader':
+        reqargs = [];
+        break;
+    }
+    for (let r in reqargs) {
+      if (!execOptions[reqargs[r]]) {
+        throw `${reqargs[r]} is undefined, but required`;
+      }
+    }
+    act(secondaryOptions[i].action, execOptions, +i);
+
+    console.log(`\secondaryOptions[${i}]\n============`);
+    console.log(secondaryOptions[i]);
   }
 }
-
-/*
-
-let argvstart = argv.indexOf("--op");
-let argvpost = argv.trimStart().split('--op ').slice(argvstart, argv.length);
-argvpost = argvpost.splice(1, argvpost.length);
-for (let arg in argvpost) {
-  const obj = Args;
-  let argarr = argvpost[arg].split(' ');
-  for (let a in argarr) {
-    switch (argarr[a]) {
-      case '-r':
-        obj.process = argarr[+a + 1];
-        break;
-      case '-a':
-        obj.actions.push(argarr[+a + 1]);
-        break;
-      case '-l':
-        obj.layers.push(+argarr[+a + 1]);
-        break;
-      case '-rgb':
-        obj.rgbs.push(argarr[+a + 1]);
-        break;
-    }
-  }
-
-  for (let ac in obj.actions) {
-    const curac: string = obj.actions[ac];
-    const curlay: number = obj.layers[ac];
-    const currgb: string = obj.rgbs[ac];
-    obj.acts[ac] = act(curac);
-    const curact = obj.acts[ac];
-
-    if (curlay) {
-      console.log('layer: ', curlay);
-      curact.params.layer = curlay;
-    } else {
-      if (curac != "bootloader" && curac != "rgb_change") {
-        throw ('A layer must be specified');
-      }
-    }
-
-    if (currgb) {
-      console.log('rgb: ', currgb);
-      curact.params.rgb = currgb;
-    } else {
-      if (curac == "rgb_change") {
-        throw ('Need to specify RGB parameter');
-      }
-    }
-
-    if (obj.process) {
-      curact.params.process = obj.process;
-      curact.timer = setInterval(() => curact.isRunning(), 3000);
-    } else {
-      console.log('else');
-      curact.cb();
-    }
-
-  }
-  console.log(obj);
-  args.push(obj);
-}
-
-*/
-
-
-// let readProc: "rgb_notify" | "";
-// let resetHSV: string;
-//
-// keys.on("data", function(data) {
-//   if (readProc) {
-//     switch (readProc) {
-//       case "rgb_notify":
-//         let [h, s, v] = resetHSV.split(',');
-//         return;
-//       default:
-//         return;
-//     }
-//   }
-// });
-
