@@ -10,9 +10,11 @@ var device = devices.find((e: any) => {
   return e.usagePage == 65376 && e.usage == 97
 })
 
+console.log(device);
+
 var keys = new HID(device.path);
 function HIDWrite(dev: HID, msg: number[]) {
-  const div = 29;
+  const div = 28;
   const packageamt = Math.ceil(msg.length / div);
   console.log("total: ", packageamt);
   let curpack = 1;
@@ -26,8 +28,8 @@ function HIDWrite(dev: HID, msg: number[]) {
       msgnew = msg.slice((n * div), (n * div) + (div * n));
       console.log("s: ", n * div, "e: ", (n * div) + (div * n));
     }
-    console.log("msgnew: ", msgnew);
-    msgs[n] = [n + 1, packageamt, 0, ...msgnew];
+    // console.log("msgnew: ", msgnew);
+    msgs[n] = [0x00, n + 1, packageamt, 0, ...msgnew];
     msgs[n][2] = msgs[n].length;
   }
   for (let i = 0; i < msgs.length; i++) {
@@ -59,13 +61,13 @@ interface Operation {
 let actions: { [key: string]: Function } = {
   "layer_on": (lay: number): void => {
     lay = (lay & 0xFF);
-    const write = [0x00, 0, 1, lay];
+    const write = [0, 1, lay];
     // console.log("hid write: ", write.toString());
     HIDWrite(keys, write);
   },
   "layer_off": (lay: number): void => {
     lay = (lay & 0xFF);
-    const write = [0x00, 0, 0, lay];
+    const write = [0, 0, lay];
     // console.log("hid write: ", write.toString());
     HIDWrite(keys, write);
   },
@@ -76,7 +78,7 @@ let actions: { [key: string]: Function } = {
     h = (h & 0xFF);
     s = (s & 0xFF);
     v = (v & 0xFF);
-    const write = [0x00, 1, 0, h, s, v];
+    const write = [1, 0, h, s, v];
     // console.log("hid write: ", write.toString());
     HIDWrite(keys, write);
   },
@@ -84,7 +86,7 @@ let actions: { [key: string]: Function } = {
     r = (r & 0xFF);
     g = (g & 0xFF);
     b = (b & 0xFF);
-    const write = [0x00, 1, 3, r, g, b];
+    const write = [1, 3, r, g, b];
     // console.log("hid write: ", write.toString());
     HIDWrite(keys, write);
   },
@@ -92,7 +94,7 @@ let actions: { [key: string]: Function } = {
     r = (r & 0xFF);
     g = (g & 0xFF);
     b = (b & 0xFF);
-    const write = [0x00, 1, 1, r, g, b];
+    const write = [1, 1, r, g, b];
     for (let n = 0; n < i.length; n++) {
       write.push(i[n] & 0xFF);
     }
@@ -106,27 +108,27 @@ let actions: { [key: string]: Function } = {
     h = (h & 0xFF);
     s = (s & 0xFF);
     v = (v & 0xFF);
-    const write = [0x00, 1, 2, h, s, v];
-    console.log("hid write: ", write.toString());
+    const write = [1, 2, h, s, v];
+    // console.log("hid write: ", write.toString());
     HIDWrite(keys, write);
     let oldhsv = keys.readSync().splice(0, 3);
     console.log(oldhsv);
     setTimeout(() => {
-      const write = [0x00, 1, 0, oldhsv[0], oldhsv[1], oldhsv[2]];
-      console.log("hid write: ", write.toString());
+      const write = [1, 0, oldhsv[0], oldhsv[1], oldhsv[2]];
+      // console.log("hid write: ", write.toString());
       HIDWrite(keys, write);
     }, 1000)
   },
   "msg_send": (msg: string): void => {
-    const write = [0x00, 2, 0, 0, 0, 0];
+    const write = [2, 0, 0, 0, 0];
     for (let char = 0; char < msg.length; char++) {
       write.push(msg.charCodeAt(char));
     }
-    console.log("hid write: ", write.toString());
+    // console.log("hid write: ", write.toString());
     HIDWrite(keys, write);
   },
   "bootloader": (): void => {
-    const write = [0x00, 99, 0];
+    const write = [99, 0];
     console.log('bootloader');
     HIDWrite(keys, write);
   }
@@ -473,7 +475,7 @@ if (commandOptions.command === 'config') {
       const curop = conf[op];
       for (let ac in curop.actions) {
         let curobj = curop.actions[ac];
-        curobj.action = act(curobj.action, curop, +ac);
+        curobj.action = act(curobj.action, curobj, +ac);
       }
     }
   });
