@@ -371,55 +371,7 @@ let act = (action: string, params: Object, index: number): Operation => {
   }
 }
 
-// node app.js exec -p msgtest1.json
-
-// node app.js --op -r audiorelay.exe -a layer_on_con -l 1
-let argvs = process.argv.splice(2, process.argv.length);
-console.log(argvs);
-let commandOptions: commandLineArgs.CommandLineOptions;
-let secondaryOptions: Array<commandLineArgs.CommandLineOptions> = [];
-
-const commandDefinitions = [
-  { name: 'command', type: String, defaultOption: true }
-];
-
-commandOptions = commandLineArgs(commandDefinitions, { stopAtFirstUnknown: true, argv: argvs });
-const params = commandOptions._unknown || [];
-console.log(`\ncommandOptions\n============`);
-console.log(commandOptions);
-
-// second - parse the config command options
-if (commandOptions.command === 'config') {
-  const configDefinitions = [
-    { name: 'path', alias: 'p', type: String }
-  ];
-  secondaryOptions[0] = commandLineArgs(configDefinitions, { argv: params });
-
-  console.log(`\nsecondaryOptions[${0}]\n============`);
-  console.log(secondaryOptions[0]);
-  fs.readFile(secondaryOptions[0].path, function(err: any, data: any) {
-    if (err) {
-      throw err;
-    }
-    const conf = JSON.parse(data).operations;
-    for (let op in conf) {
-      const curop = conf[op];
-      for (let ac in curop.actions) {
-        let curobj = curop.actions[ac];
-        curobj.action = act(curobj.action, curop, +ac);
-      }
-    }
-  });
-} else if (commandOptions.command === 'exec') {
-  let opArgs = [];
-  params.forEach((e, i, a) => {
-    if (e === '--op') {
-      opArgs.push(a.slice(i + 1, a.slice(i + 1, a.length).indexOf('--op') + 1 || a.length));
-    }
-  });
-  console.log('opArgs ');
-  console.log(opArgs);
-
+let actinit = function(opArgs: any[]) {
   for (const i in opArgs) {
     let argos = opArgs[i];
 
@@ -484,4 +436,87 @@ if (commandOptions.command === 'config') {
     console.log(`\secondaryOptions[${i}]\n============`);
     console.log(secondaryOptions[i]);
   }
+}
+
+// node app.js exec -p msgtest1.json
+
+// node app.js --op -r audiorelay.exe -a layer_on_con -l 1
+let argvs = process.argv.splice(2, process.argv.length);
+console.log(argvs);
+let commandOptions: commandLineArgs.CommandLineOptions;
+let secondaryOptions: Array<commandLineArgs.CommandLineOptions> = [];
+
+const commandDefinitions = [
+  { name: 'command', type: String, defaultOption: true }
+];
+
+commandOptions = commandLineArgs(commandDefinitions, { stopAtFirstUnknown: true, argv: argvs });
+const params = commandOptions._unknown || [];
+console.log(`\ncommandOptions\n============`);
+console.log(commandOptions);
+
+// second - parse the config command options
+if (commandOptions.command === 'config') {
+  const configDefinitions = [
+    { name: 'path', alias: 'p', type: String }
+  ];
+  secondaryOptions[0] = commandLineArgs(configDefinitions, { argv: params });
+
+  console.log(`\nsecondaryOptions[${0}]\n============`);
+  console.log(secondaryOptions[0]);
+  fs.readFile(secondaryOptions[0].path, function(err: any, data: any) {
+    if (err) {
+      throw err;
+    }
+    const conf = JSON.parse(data).operations;
+    for (let op in conf) {
+      const curop = conf[op];
+      for (let ac in curop.actions) {
+        let curobj = curop.actions[ac];
+        curobj.action = act(curobj.action, curop, +ac);
+      }
+    }
+  });
+} else if (commandOptions.command === 'exec') {
+  let opArgs = [];
+  params.forEach((e, i, a) => {
+    if (e === '--op') {
+      opArgs.push(a.slice(i + 1, a.slice(i + 1, a.length).indexOf('--op') + 1 || a.length));
+    }
+  });
+  console.log('opArgs ');
+  console.log(opArgs);
+
+  actinit(opArgs);
+
+} else if (commandOptions.command === 'cli') {
+  const rl = require('readline').createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  rl.setPrompt('cmd> ');
+  rl.prompt();
+
+  rl.on('line', function(cmd) {
+    if (cmd == 'exit') {
+      rl.close();
+    } else {
+      let params = cmd.split(' ');
+      let opArgs = [];
+      params.forEach((e, i, a) => {
+        if (e === '--op') {
+          opArgs.push(a.slice(i + 1, a.slice(i + 1, a.length).indexOf('--op') + 1 || a.length));
+        }
+      });
+      console.log('opArgs ');
+      console.log(opArgs);
+
+      actinit(opArgs);
+    }
+    rl.prompt();
+  }).on('close', function() {
+    console.log('Have a great day!');
+    process.exit(0);
+  });
 }

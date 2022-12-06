@@ -384,52 +384,9 @@ var act = function (action, params, index) {
         throw (err);
     }
 };
-// node app.js exec -p msgtest1.json
-// node app.js --op -r audiorelay.exe -a layer_on_con -l 1
-var argvs = process.argv.splice(2, process.argv.length);
-console.log(argvs);
-var commandOptions;
-var secondaryOptions = [];
-var commandDefinitions = [
-    { name: 'command', type: String, defaultOption: true }
-];
-commandOptions = commandLineArgs(commandDefinitions, { stopAtFirstUnknown: true, argv: argvs });
-var params = commandOptions._unknown || [];
-console.log("\ncommandOptions\n============");
-console.log(commandOptions);
-// second - parse the config command options
-if (commandOptions.command === 'config') {
-    var configDefinitions = [
-        { name: 'path', alias: 'p', type: String }
-    ];
-    secondaryOptions[0] = commandLineArgs(configDefinitions, { argv: params });
-    console.log("\nsecondaryOptions[".concat(0, "]\n============"));
-    console.log(secondaryOptions[0]);
-    fs.readFile(secondaryOptions[0].path, function (err, data) {
-        if (err) {
-            throw err;
-        }
-        var conf = JSON.parse(data).operations;
-        for (var op in conf) {
-            var curop = conf[op];
-            for (var ac in curop.actions) {
-                var curobj = curop.actions[ac];
-                curobj.action = act(curobj.action, curop, +ac);
-            }
-        }
-    });
-}
-else if (commandOptions.command === 'exec') {
-    var opArgs_1 = [];
-    params.forEach(function (e, i, a) {
-        if (e === '--op') {
-            opArgs_1.push(a.slice(i + 1, a.slice(i + 1, a.length).indexOf('--op') + 1 || a.length));
-        }
-    });
-    console.log('opArgs ');
-    console.log(opArgs_1);
-    for (var i in opArgs_1) {
-        var argos = opArgs_1[i];
+var actinit = function (opArgs) {
+    for (var i in opArgs) {
+        var argos = opArgs[i];
         // if we are using the command line to exec actions
         var actionDefinitions = [
             { name: 'action', type: String, defaultOption: true }
@@ -488,4 +445,79 @@ else if (commandOptions.command === 'exec') {
         console.log("secondaryOptions[".concat(i, "]\n============"));
         console.log(secondaryOptions[i]);
     }
+};
+// node app.js exec -p msgtest1.json
+// node app.js --op -r audiorelay.exe -a layer_on_con -l 1
+var argvs = process.argv.splice(2, process.argv.length);
+console.log(argvs);
+var commandOptions;
+var secondaryOptions = [];
+var commandDefinitions = [
+    { name: 'command', type: String, defaultOption: true }
+];
+commandOptions = commandLineArgs(commandDefinitions, { stopAtFirstUnknown: true, argv: argvs });
+var params = commandOptions._unknown || [];
+console.log("\ncommandOptions\n============");
+console.log(commandOptions);
+// second - parse the config command options
+if (commandOptions.command === 'config') {
+    var configDefinitions = [
+        { name: 'path', alias: 'p', type: String }
+    ];
+    secondaryOptions[0] = commandLineArgs(configDefinitions, { argv: params });
+    console.log("\nsecondaryOptions[".concat(0, "]\n============"));
+    console.log(secondaryOptions[0]);
+    fs.readFile(secondaryOptions[0].path, function (err, data) {
+        if (err) {
+            throw err;
+        }
+        var conf = JSON.parse(data).operations;
+        for (var op in conf) {
+            var curop = conf[op];
+            for (var ac in curop.actions) {
+                var curobj = curop.actions[ac];
+                curobj.action = act(curobj.action, curop, +ac);
+            }
+        }
+    });
+}
+else if (commandOptions.command === 'exec') {
+    var opArgs_1 = [];
+    params.forEach(function (e, i, a) {
+        if (e === '--op') {
+            opArgs_1.push(a.slice(i + 1, a.slice(i + 1, a.length).indexOf('--op') + 1 || a.length));
+        }
+    });
+    console.log('opArgs ');
+    console.log(opArgs_1);
+    actinit(opArgs_1);
+}
+else if (commandOptions.command === 'cli') {
+    var rl_1 = require('readline').createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+    rl_1.setPrompt('cmd> ');
+    rl_1.prompt();
+    rl_1.on('line', function (cmd) {
+        if (cmd == 'exit') {
+            rl_1.close();
+        }
+        else {
+            var params_1 = cmd.split(' ');
+            var opArgs_2 = [];
+            params_1.forEach(function (e, i, a) {
+                if (e === '--op') {
+                    opArgs_2.push(a.slice(i + 1, a.slice(i + 1, a.length).indexOf('--op') + 1 || a.length));
+                }
+            });
+            console.log('opArgs ');
+            console.log(opArgs_2);
+            actinit(opArgs_2);
+        }
+        rl_1.prompt();
+    }).on('close', function () {
+        console.log('Have a great day!');
+        process.exit(0);
+    });
 }
