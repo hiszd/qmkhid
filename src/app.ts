@@ -1,9 +1,26 @@
-import { rgb2hsv } from "./lib";
+import { rgb2hsv } from "./lib.js";
 import { HID, devices as HIDDevices } from 'node-hid';
-import * as commandLineArgs from 'command-line-args';
+import commandLineArgs from 'command-line-args';
 var devices = HIDDevices();
-const exec = require('child_process').exec;
-const fs = require('fs');
+// const exec = require('child_process').exec;
+import { exec } from 'child_process';
+// const fs = require('fs');
+import fs from 'fs';
+import { createInterface } from 'readline';
+const rl = createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+// Function 1
+var fullNames = [];
+for (var i = 0; i < 50; i++) {
+  fullNames.push(names[Math.floor(Math.random() * names.length)]
+    + " " + lastNames[Math.floor(Math.random() * lastNames.length)]);
+}
+
+// What does Function 1 do?
+
 
 var device = devices.find((e: any) => {
   // Custom usage 0x69 and standard usagePage 0xFF60
@@ -14,6 +31,7 @@ console.log(device);
 
 var keys = new HID(device.path);
 function HIDWrite(dev: HID, msg: number[]) {
+  // divisor for packet size is actual packet size(32bytes) - header size(4bytes) = 28bytes
   const div = 28;
   const packageamt = Math.ceil(msg.length / div);
   console.log("total: ", packageamt);
@@ -30,7 +48,7 @@ function HIDWrite(dev: HID, msg: number[]) {
     }
     // console.log("msgnew: ", msgnew);
     msgs[n] = [0x00, n + 1, packageamt, 0, ...msgnew];
-    msgs[n][2] = msgs[n].length;
+    msgs[n][3] = msgs[n].length - 1;
   }
   for (let i = 0; i < msgs.length; i++) {
     let write = msgs[i];
@@ -475,6 +493,8 @@ if (commandOptions.command === 'config') {
       const curop = conf[op];
       for (let ac in curop.actions) {
         let curobj = curop.actions[ac];
+        curobj.process = curop.process;
+        console.log(`curobj: ${JSON.stringify(curobj)}`);
         curobj.action = act(curobj.action, curobj, +ac);
       }
     }
@@ -492,11 +512,6 @@ if (commandOptions.command === 'config') {
   actinit(opArgs);
 
 } else if (commandOptions.command === 'cli') {
-  const rl = require('readline').createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
-
   rl.setPrompt('cmd> ');
   rl.prompt();
 

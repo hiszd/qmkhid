@@ -5,11 +5,11 @@
       "actions": [
         {
           "action": "layer_on",
-          "layer": 1
+          "layer": 3
         },
         {
-          "action": "rgb_change",
-          "rgb": "0,255,0"
+          "action": "rgb_all",
+          "rgb": "0,0,255"
         }
       ]
     }

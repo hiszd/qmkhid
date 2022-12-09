@@ -2,25 +2,26 @@
   "name": "qmkhid",
   "version": "0.1.0",
   "description": "",
-  "main": "app.js",
+  "main": "dist/app.js",
+  "type": "module",
   "scripts": {
-    "run": "npx tsc app.ts && node app.js",
-    "test": "npx tsc app.ts && node app.js --op -r audiorelay.exe -a layer_on_con -l 1 --op -r cod.exe -a layer_on -l 3",
-    "testlin": "npx tsc app.ts && node app.js --op -r hyper -a layer_switch -l 3 --op -r remmina -a layer_on -l 1",
-    "testlin1": "npx tsc app.ts && node app.js --op -a layer_on -l 3",
-    "boot": "npx tsc app.ts && node app.js -c boot.json",
-    "rgb": "npx tsc app.ts && node app.js --op -a rgb_change -rgb 255,255,0",
-    "rgbind": "npx tsc app.ts && node app.js -c rgbtest1.json",
-    "rgbnot": "npx tsc app.ts && node app.js -c rgbnot.json",
-    "rgball": "npx tsc app.ts && node app.js -c rgbtest2.json",
-    "rgbkey": "npx tsc app.ts && node app.js -c rgbtest3.json",
-    "rgbymd": "npx tsc app.ts && node app.js -c rgbtest3_ymd75.json",
-    "conftest": "npx tsc app.ts && node app.js -c lintest.json",
-    "lintest1": "npx tsc app.ts && node app.js -c lintest1.json",
-    "msgtest": "npx tsc app.ts && node --trace-uncaught app.js config -p msgtest1.json",
-    "argtest": "npx tsc app.ts && node app.js exec --op rgb_ind --rgb 0,255,0,0",
-    "argtest1": "npx tsc app.ts && node app.js exec --op rgb_ind --rgb 0,255,0,0 --op msg_send --msg \"Hello World\"",
-    "clitest": "npx tsc app.ts && node app.js cli "
+    "run": "npx tsc && node dist/app.js",
+    "build": "tsc",
+    "test": "npx tsc && node dist/app.js exec --op -r audiorelay.exe -a layer_on_con -l 1 --op -r cod.exe -a layer_on -l 3",
+    "testlin": "npx tsc && node dist/app.js exec --op -r hyper -a layer_switch -l 3 --op -r remmina -a layer_on -l 1",
+    "testlin1": "npx tsc && node dist/app.js exec --op -a layer_on -l 3",
+    "boot": "npx tsc && node dist/app.js config -p boot.json",
+    "rgb": "npx tsc && node dist/app.js exec --op -a rgb_change -rgb 255,255,0",
+    "rgbind": "npx tsc && node dist/app.js config -p rgbtest1.json",
+    "rgbnot": "npx tsc && node dist/app.js config -p rgbnot.json",
+    "rgball": "npx tsc && node dist/app.js config -p rgbtest2.json",
+    "rgbkey": "npx tsc && node dist/app.js config -p rgbtest3.json",
+    "rgbymd": "npx tsc && node dist/app.js config -p rgbtest3_ymd75.json",
+    "lintest": "npx tsc && node dist/app.js config -p lintest.json",
+    "msgtest": "npx tsc && node --trace-uncaught dist/app.js config -p msgtest1.json",
+    "argtest": "npx tsc && node dist/app.js exec --op rgb_ind --rgb 0,255,0,0",
+    "argtest1": "npx tsc && node dist/app.js exec --op rgb_ind --rgb 0,255,0,0 --op msg_send --msg \"Hello World\"",
+    "clitest": "npx tsc && node dist/app.js cli "
   },
   "repository": {
     "type": "git",
@@ -42,6 +43,6 @@
   },
   "devDependencies": {
     "@types/node": "^18.11.9",
-    "typescript": "^4.8.4"
+    "typescript": "^4.9.3"
   }
 }

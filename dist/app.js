@@ -1,34 +1,31 @@
-"use strict";
-var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
-    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
-        if (ar || !(i in from)) {
-            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
-            ar[i] = from[i];
-        }
-    }
-    return to.concat(ar || Array.prototype.slice.call(from));
-};
-exports.__esModule = true;
-var lib_1 = require("./lib");
-var node_hid_1 = require("node-hid");
-var commandLineArgs = require("command-line-args");
-var devices = (0, node_hid_1.devices)();
-var exec = require('child_process').exec;
-var fs = require('fs');
-var device = devices.find(function (e) {
+import { rgb2hsv } from "./lib.js";
+import { HID, devices as HIDDevices } from 'node-hid';
+import commandLineArgs from 'command-line-args';
+var devices = HIDDevices();
+// const exec = require('child_process').exec;
+import { exec } from 'child_process';
+// const fs = require('fs');
+import fs from 'fs';
+import { createInterface } from 'readline';
+const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+var device = devices.find((e) => {
     // Custom usage 0x69 and standard usagePage 0xFF60
     return e.usagePage == 65376 && e.usage == 97;
 });
 console.log(device);
-var keys = new node_hid_1.HID(device.path);
+var keys = new HID(device.path);
 function HIDWrite(dev, msg) {
-    var div = 28;
-    var packageamt = Math.ceil(msg.length / div);
+    // divisor for packet size is actual packet size(32bytes) - header size(4bytes) = 28bytes
+    const div = 28;
+    const packageamt = Math.ceil(msg.length / div);
     console.log("total: ", packageamt);
-    var curpack = 1;
-    var msgs = [[]];
-    for (var n = 0; n < packageamt; n++) {
-        var msgnew = [];
+    let curpack = 1;
+    let msgs = [[]];
+    for (let n = 0; n < packageamt; n++) {
+        let msgnew = [];
         if (n == 0) {
             msgnew = msg.slice((n * div), (div) + (div * n));
             console.log("s: ", n * div, "e: ", (div) + (div * n));
@@ -38,11 +35,11 @@ function HIDWrite(dev, msg) {
             console.log("s: ", n * div, "e: ", (n * div) + (div * n));
         }
         // console.log("msgnew: ", msgnew);
-        msgs[n] = __spreadArray([0x00, n + 1, packageamt, 0], msgnew, true);
-        msgs[n][2] = msgs[n].length;
+        msgs[n] = [0x00, n + 1, packageamt, 0, ...msgnew];
+        msgs[n][3] = msgs[n].length - 1;
     }
-    for (var i = 0; i < msgs.length; i++) {
-        var write = msgs[i];
+    for (let i = 0; i < msgs.length; i++) {
+        let write = msgs[i];
         console.log("write ", write.length, ": ", curpack, write);
         dev.write(write);
         curpack = curpack + 1;
@@ -51,111 +48,110 @@ function HIDWrite(dev, msg) {
 // Actual messages sent to the HID device
 // Format is like this:
 // [0x00, reqtype, command, data1, data2, data3]
-var actions = {
-    "layer_on": function (lay) {
+let actions = {
+    "layer_on": (lay) => {
         lay = (lay & 0xFF);
-        var write = [0, 1, lay];
+        const write = [0, 1, lay];
         // console.log("hid write: ", write.toString());
         HIDWrite(keys, write);
     },
-    "layer_off": function (lay) {
+    "layer_off": (lay) => {
         lay = (lay & 0xFF);
-        var write = [0, 0, lay];
+        const write = [0, 0, lay];
         // console.log("hid write: ", write.toString());
         HIDWrite(keys, write);
     },
-    "rgb_change": function (r, g, b) {
-        var hsv = (0, lib_1.rgb2hsv)(r / 255, g / 255, b / 255);
-        var h = (hsv[0] / 360) * 255;
-        var s = hsv[1] * 255, v = hsv[2] * 255;
+    "rgb_change": (r, g, b) => {
+        let hsv = rgb2hsv(r / 255, g / 255, b / 255);
+        let h = (hsv[0] / 360) * 255;
+        let s = hsv[1] * 255, v = hsv[2] * 255;
         h = (h & 0xFF);
         s = (s & 0xFF);
         v = (v & 0xFF);
-        var write = [1, 0, h, s, v];
+        const write = [1, 0, h, s, v];
         // console.log("hid write: ", write.toString());
         HIDWrite(keys, write);
     },
-    "rgb_all": function (r, g, b) {
+    "rgb_all": (r, g, b) => {
         r = (r & 0xFF);
         g = (g & 0xFF);
         b = (b & 0xFF);
-        var write = [1, 3, r, g, b];
+        const write = [1, 3, r, g, b];
         // console.log("hid write: ", write.toString());
         HIDWrite(keys, write);
     },
-    "rgb_ind": function (r, g, b, i) {
+    "rgb_ind": (r, g, b, i) => {
         r = (r & 0xFF);
         g = (g & 0xFF);
         b = (b & 0xFF);
-        var write = [1, 1, r, g, b];
-        for (var n = 0; n < i.length; n++) {
+        const write = [1, 1, r, g, b];
+        for (let n = 0; n < i.length; n++) {
             write.push(i[n] & 0xFF);
         }
         // console.log("hid write: ", write.toString());
         HIDWrite(keys, write);
     },
-    "rgb_notify": function (r, g, b) {
-        var hsv = (0, lib_1.rgb2hsv)(r / 255, g / 255, b / 255);
-        var h = (hsv[0] / 360) * 255;
-        var s = hsv[1] * 255, v = hsv[2] * 255;
+    "rgb_notify": (r, g, b) => {
+        let hsv = rgb2hsv(r / 255, g / 255, b / 255);
+        let h = (hsv[0] / 360) * 255;
+        let s = hsv[1] * 255, v = hsv[2] * 255;
         h = (h & 0xFF);
         s = (s & 0xFF);
         v = (v & 0xFF);
-        var write = [1, 2, h, s, v];
+        const write = [1, 2, h, s, v];
         // console.log("hid write: ", write.toString());
         HIDWrite(keys, write);
-        var oldhsv = keys.readSync().splice(0, 3);
+        let oldhsv = keys.readSync().splice(0, 3);
         console.log(oldhsv);
-        setTimeout(function () {
-            var write = [1, 0, oldhsv[0], oldhsv[1], oldhsv[2]];
+        setTimeout(() => {
+            const write = [1, 0, oldhsv[0], oldhsv[1], oldhsv[2]];
             // console.log("hid write: ", write.toString());
             HIDWrite(keys, write);
         }, 1000);
     },
-    "msg_send": function (msg) {
-        var write = [2, 0, 0, 0, 0];
-        for (var char = 0; char < msg.length; char++) {
+    "msg_send": (msg) => {
+        const write = [2, 0, 0, 0, 0];
+        for (let char = 0; char < msg.length; char++) {
             write.push(msg.charCodeAt(char));
         }
         // console.log("hid write: ", write.toString());
         HIDWrite(keys, write);
     },
-    "bootloader": function () {
-        var write = [99, 0];
+    "bootloader": () => {
+        const write = [99, 0];
         console.log('bootloader');
         HIDWrite(keys, write);
     }
 };
 function IR(p, cb) {
-    var platform = process.platform;
-    var cmd = '';
+    let platform = process.platform;
+    let cmd = '';
     switch (platform) {
         case 'win32':
-            cmd = "tasklist";
+            cmd = `tasklist`;
             break;
         case 'darwin':
-            cmd = "ps -ax | grep ".concat(p);
+            cmd = `ps -ax | grep ${p}`;
             break;
         case 'linux':
-            cmd = "ps -A";
+            cmd = `ps -A`;
             break;
         default: break;
     }
-    exec(cmd, function (err, stdout, stderr) {
+    exec(cmd, (err, stdout, stderr) => {
         cb(stdout.toLowerCase().indexOf(p.toLowerCase()) > -1);
     });
 }
-var layerops = ["layer_on", "layer_off", "layer_switch", "layer_on_con"];
+let layerops = ["layer_on", "layer_off", "layer_switch", "layer_on_con"];
 // Functions that return custom versions of 'Operation' for different purposes
-var ops = {
+let ops = {
     // If a process was specified then wait till it is on to turn the layer on
     // Otherwise just turn the layer on
-    "layer_on": function () { return ({
-        cb: function (status) {
-            var _this = this;
+    "layer_on": () => ({
+        cb(status) {
             console.log(this);
             if (status == true) {
-                setTimeout(function () { actions["layer_on"](_this.params.layer); }, this.params.delay);
+                setTimeout(() => { actions["layer_on"](this.params.layer); }, this.params.delay);
                 if (this.timer) {
                     clearInterval(this.timer);
                 }
@@ -165,18 +161,17 @@ var ops = {
                 actions["layer_on"](this.params.layer);
             }
         },
-        isRunning: function () {
+        isRunning() {
             IR(this.params.process, this.cb.bind(this));
         },
         success: false
-    }); },
+    }),
     // Wait to turn the layer on until the application is discovered
     // Then stay active and wait until the application is closed and launched again
-    "layer_on_con": function () { return ({
-        cb: function (status) {
-            var _this = this;
+    "layer_on_con": () => ({
+        cb(status) {
             if (status == true && !this.success) {
-                setTimeout(function () { actions["layer_on"](_this.params.layer); }, this.params.delay);
+                setTimeout(() => { actions["layer_on"](this.params.layer); }, this.params.delay);
                 this.success = true;
             }
             else if (status == false && this.success) {
@@ -186,60 +181,58 @@ var ops = {
                 throw ("Cannot con without process specified");
             }
         },
-        isRunning: function () {
+        isRunning() {
             IR(this.params.process, this.cb.bind(this));
         },
         success: false
-    }); },
+    }),
     // If a process was specified then wait till it is on to turn the layer off
     // Otherwise just turn the layer off
-    "layer_off": function () { return ({
-        cb: function (status) {
-            var _this = this;
+    "layer_off": () => ({
+        cb(status) {
             if (status == true) {
-                setTimeout(function () { actions["layer_off"](_this.params.layer); }, this.params.delay);
+                setTimeout(() => { actions["layer_off"](this.params.layer); }, this.params.delay);
                 if (this.timer) {
                     clearInterval(this.timer);
                 }
             }
             else if (status == undefined) {
-                setTimeout(function () { actions["layer_off"](_this.params.layer); }, this.params.delay);
+                setTimeout(() => { actions["layer_off"](this.params.layer); }, this.params.delay);
             }
         },
-        isRunning: function () {
+        isRunning() {
             IR(this.params.process, this.cb.bind(this));
         },
         success: false
-    }); },
+    }),
     // Wait till application is discovered then turn layer on
     // when application is closed then turn the layer off
     // then wait till it is launched again
-    "layer_switch": function () { return ({
-        cb: function (status) {
-            var _this = this;
+    "layer_switch": () => ({
+        cb(status) {
             if (status == true && !this.success) {
-                setTimeout(function () { actions["layer_on"](_this.params.layer); }, this.params.delay);
+                setTimeout(() => { actions["layer_on"](this.params.layer); }, this.params.delay);
                 this.success = true;
             }
             else if (status == false && this.success) {
-                setTimeout(function () { actions["layer_off"](_this.params.layer); }, this.params.delay);
+                setTimeout(() => { actions["layer_off"](this.params.layer); }, this.params.delay);
                 this.success = false;
             }
             else if (status == undefined) {
                 throw ("Cannot switch without process specified");
             }
         },
-        isRunning: function () {
+        isRunning() {
             IR(this.params.process, this.cb.bind(this));
         },
         success: false
-    }); },
-    "rgb_change": function () { return ({
-        cb: function (status) {
+    }),
+    "rgb_change": () => ({
+        cb(status) {
             if ((status == true || status == undefined) && this.params.rgb && !this.success) {
-                var rgb = this.params.rgb.split(',');
-                var r_1 = rgb[0], g_1 = rgb[1], b_1 = rgb[2];
-                setTimeout(function () { actions["rgb_change"](+r_1, +g_1, +b_1); }, this.params.delay);
+                const rgb = this.params.rgb.split(',');
+                const [r, g, b] = rgb;
+                setTimeout(() => { actions["rgb_change"](+r, +g, +b); }, this.params.delay);
                 this.success = true;
                 clearInterval(this.timer);
             }
@@ -247,17 +240,17 @@ var ops = {
                 throw ('Need to specify RGB parameter');
             }
         },
-        isRunning: function () {
+        isRunning() {
             IR(this.params.process, this.cb.bind(this));
         },
         success: false
-    }); },
-    "rgb_all": function () { return ({
-        cb: function (status) {
+    }),
+    "rgb_all": () => ({
+        cb(status) {
             if ((status == true || status == undefined) && this.params.rgb && !this.success) {
-                var rgb = this.params.rgb.split(',');
-                var r_2 = rgb[0], g_2 = rgb[1], b_2 = rgb[2];
-                setTimeout(function () { actions["rgb_all"](+r_2, +g_2, +b_2); }, this.params.delay);
+                const rgb = this.params.rgb.split(',');
+                const [r, g, b] = rgb;
+                setTimeout(() => { actions["rgb_all"](+r, +g, +b); }, this.params.delay);
                 this.success = true;
                 clearInterval(this.timer);
             }
@@ -265,21 +258,21 @@ var ops = {
                 throw ('Need to specify RGB parameter');
             }
         },
-        isRunning: function () {
+        isRunning() {
             IR(this.params.process, this.cb.bind(this));
         },
         success: false
-    }); },
-    "rgb_ind": function () { return ({
-        cb: function (status) {
+    }),
+    "rgb_ind": () => ({
+        cb(status) {
             if ((status == true || status == undefined) && this.params.rgb && !this.success) {
-                var rgbi = this.params.rgb.split(',');
-                var r_3 = rgbi[0], g_3 = rgbi[1], b_3 = rgbi[2], i_1 = rgbi.slice(3);
-                i_1 = i_1.map(function (e) {
+                const rgbi = this.params.rgb.split(',');
+                let [r, g, b, ...i] = rgbi;
+                i = i.map((e) => {
                     return +e;
                 });
-                console.log(i_1);
-                setTimeout(function () { actions["rgb_ind"](+r_3, +g_3, +b_3, i_1); }, this.params.delay);
+                console.log(i);
+                setTimeout(() => { actions["rgb_ind"](+r, +g, +b, i); }, this.params.delay);
                 this.success = true;
                 clearInterval(this.timer);
             }
@@ -287,17 +280,17 @@ var ops = {
                 throw ('Need to specify RGB parameter');
             }
         },
-        isRunning: function () {
+        isRunning() {
             IR(this.params.process, this.cb.bind(this));
         },
         success: false
-    }); },
-    "rgb_notify": function () { return ({
-        cb: function (status) {
+    }),
+    "rgb_notify": () => ({
+        cb(status) {
             if ((status == true || status == undefined) && this.params.rgb && !this.success) {
-                var rgb = this.params.rgb.split(',');
-                var r_4 = rgb[0], g_4 = rgb[1], b_4 = rgb[2];
-                setTimeout(function () { actions["rgb_notify"](+r_4, +g_4, +b_4); }, this.params.delay);
+                const rgb = this.params.rgb.split(',');
+                const [r, g, b] = rgb;
+                setTimeout(() => { actions["rgb_notify"](+r, +g, +b); }, this.params.delay);
                 this.success = true;
                 clearInterval(this.timer);
             }
@@ -305,16 +298,15 @@ var ops = {
                 throw ('Need to specify RGB parameter');
             }
         },
-        isRunning: function () {
+        isRunning() {
             IR(this.params.process, this.cb.bind(this));
         },
         success: false
-    }); },
-    "msg_send": function () { return ({
-        cb: function (status) {
-            var _this = this;
+    }),
+    "msg_send": () => ({
+        cb(status) {
             if ((status == true || status == undefined) && this.params.msg && !this.success) {
-                setTimeout(function () { actions["msg_send"](_this.params.msg); }, this.params.delay);
+                setTimeout(() => { actions["msg_send"](this.params.msg); }, this.params.delay);
                 this.success = true;
                 clearInterval(this.timer);
             }
@@ -322,80 +314,80 @@ var ops = {
                 throw ('Need to specify message parameter');
             }
         },
-        isRunning: function () {
+        isRunning() {
             IR(this.params.process, this.cb.bind(this));
         },
         success: false
-    }); },
-    "bootloader": function () { return ({
-        cb: function (status) {
+    }),
+    "bootloader": () => ({
+        cb(status) {
             if (status == true || status == undefined) {
-                setTimeout(function () { actions["bootloader"](); }, this.params.delay);
+                setTimeout(() => { actions["bootloader"](); }, this.params.delay);
             }
         },
-        isRunning: function () {
+        isRunning() {
             IR(this.params.process, this.cb.bind(this));
         },
         success: false
-    }); }
+    })
 };
-var act = function (action, params, index) {
+let act = (action, params, index) => {
     try {
-        var op_1 = ops[action]();
-        op_1.params = params; // { layer: undefined, process: undefined, rgb: undefined, msg: undefined, delay: 0 }
-        if (op_1.params.layer) {
-            console.log('layer: ', op_1.params.layer);
+        let op = ops[action]();
+        op.params = params; // { layer: undefined, process: undefined, rgb: undefined, msg: undefined, delay: 0 }
+        if (op.params.layer) {
+            console.log('layer: ', op.params.layer);
         }
         else {
             if (layerops.indexOf(action) != -1) {
                 throw ('A layer must be specified');
             }
         }
-        if (op_1.params.rgb) {
-            console.log('rgb: ', op_1.params.rgb);
+        if (op.params.rgb) {
+            console.log('rgb: ', op.params.rgb);
         }
         else {
             if (action == "rgb_change") {
                 throw ('Need to specify RGB parameter');
             }
         }
-        if (op_1.params.msg) {
-            console.log('msg: ', op_1.params.msg);
+        if (op.params.msg) {
+            console.log('msg: ', op.params.msg);
         }
         else {
             if (action == "msg_send") {
                 throw ('Need to specify message parameter');
             }
         }
-        if (op_1.params.delay) {
-            console.log('del: ', op_1.params.delay);
+        if (op.params.delay) {
+            console.log('del: ', op.params.delay);
         }
-        if (op_1.params.process) {
-            var time = 3000 + (250 * index);
-            op_1.timer = setInterval(function () { return op_1.isRunning(); }, time);
+        if (op.params.process) {
+            let time = 3000 + (250 * index);
+            op.timer = setInterval(() => op.isRunning(), time);
         }
         else {
-            var time = 0 + (115 * index);
+            let time = 0 + (115 * index);
             console.log('else');
-            setTimeout(op_1.cb.bind(op_1), time);
+            setTimeout(op.cb.bind(op), time);
         }
-        return op_1;
+        return op;
     }
     catch (err) {
         throw (err);
     }
 };
-var actinit = function (opArgs) {
-    for (var i in opArgs) {
-        var argos = opArgs[i];
+let actinit = function (opArgs) {
+    for (const i in opArgs) {
+        let argos = opArgs[i];
         // if we are using the command line to exec actions
-        var actionDefinitions = [
+        const actionDefinitions = [
             { name: 'action', type: String, defaultOption: true }
         ];
         secondaryOptions[i] = commandLineArgs(actionDefinitions, { argv: argos, stopAtFirstUnknown: true });
-        var actoptsunk = secondaryOptions[i]._unknown || [];
-        var execDefinitions = [];
-        var execOptions = void 0;
+        const actoptsunk = secondaryOptions[i]._unknown || [];
+        let execDefinitions = [];
+        let execOptions;
         execDefinitions = [
             { name: 'rgb', alias: 'r', type: String },
             { name: 'msg', alias: 'm', type: String },
@@ -404,7 +396,7 @@ var actinit = function (opArgs) {
             { name: 'layer', alias: 'l', type: Number },
         ];
         execOptions = commandLineArgs(execDefinitions, { argv: actoptsunk });
-        var reqargs = [];
+        let reqargs = [];
         switch (secondaryOptions[i].action) {
             case 'layer_on':
                 reqargs = ['layer'];
@@ -437,88 +429,87 @@ var actinit = function (opArgs) {
                 reqargs = [];
                 break;
         }
-        for (var r in reqargs) {
+        for (let r in reqargs) {
             if (!execOptions[reqargs[r]]) {
-                throw "".concat(reqargs[r], " is undefined, but required");
+                throw `${reqargs[r]} is undefined, but required`;
             }
         }
         act(secondaryOptions[i].action, execOptions, +i);
-        console.log("secondaryOptions[".concat(i, "]\n============"));
+        console.log(`\secondaryOptions[${i}]\n============`);
         console.log(secondaryOptions[i]);
     }
 };
 // node app.js exec -p msgtest1.json
 // node app.js --op -r audiorelay.exe -a layer_on_con -l 1
-var argvs = process.argv.splice(2, process.argv.length);
+let argvs = process.argv.splice(2, process.argv.length);
 console.log(argvs);
-var commandOptions;
-var secondaryOptions = [];
-var commandDefinitions = [
+let commandOptions;
+let secondaryOptions = [];
+const commandDefinitions = [
     { name: 'command', type: String, defaultOption: true }
 ];
 commandOptions = commandLineArgs(commandDefinitions, { stopAtFirstUnknown: true, argv: argvs });
-var params = commandOptions._unknown || [];
-console.log("\ncommandOptions\n============");
+const params = commandOptions._unknown || [];
+console.log(`\ncommandOptions\n============`);
 console.log(commandOptions);
 // second - parse the config command options
 if (commandOptions.command === 'config') {
-    var configDefinitions = [
+    const configDefinitions = [
         { name: 'path', alias: 'p', type: String }
     ];
     secondaryOptions[0] = commandLineArgs(configDefinitions, { argv: params });
-    console.log("\nsecondaryOptions[".concat(0, "]\n============"));
+    console.log(`\nsecondaryOptions[${0}]\n============`);
     console.log(secondaryOptions[0]);
     fs.readFile(secondaryOptions[0].path, function (err, data) {
         if (err) {
             throw err;
         }
-        var conf = JSON.parse(data).operations;
-        for (var op in conf) {
-            var curop = conf[op];
-            for (var ac in curop.actions) {
-                var curobj = curop.actions[ac];
+        const conf = JSON.parse(data).operations;
+        for (let op in conf) {
+            const curop = conf[op];
+            for (let ac in curop.actions) {
+                let curobj = curop.actions[ac];
+                curobj.process = curop.process;
+                console.log(`curobj: ${JSON.stringify(curobj)}`);
                 curobj.action = act(curobj.action, curobj, +ac);
             }
         }
     });
 }
 else if (commandOptions.command === 'exec') {
-    var opArgs_1 = [];
-    params.forEach(function (e, i, a) {
+    let opArgs = [];
+    params.forEach((e, i, a) => {
         if (e === '--op') {
-            opArgs_1.push(a.slice(i + 1, a.slice(i + 1, a.length).indexOf('--op') + 1 || a.length));
+            opArgs.push(a.slice(i + 1, a.slice(i + 1, a.length).indexOf('--op') + 1 || a.length));
         }
     });
     console.log('opArgs ');
-    console.log(opArgs_1);
-    actinit(opArgs_1);
+    console.log(opArgs);
+    actinit(opArgs);
 }
 else if (commandOptions.command === 'cli') {
-    var rl_1 = require('readline').createInterface({
-        input: process.stdin,
-        output: process.stdout
-    });
-    rl_1.setPrompt('cmd> ');
-    rl_1.prompt();
-    rl_1.on('line', function (cmd) {
+    rl.setPrompt('cmd> ');
+    rl.prompt();
+    rl.on('line', function (cmd) {
         if (cmd == 'exit') {
-            rl_1.close();
+            rl.close();
         }
         else {
-            var params_1 = cmd.split(' ');
-            var opArgs_2 = [];
-            params_1.forEach(function (e, i, a) {
+            let params = cmd.split(' ');
+            let opArgs = [];
+            params.forEach((e, i, a) => {
                 if (e === '--op') {
-                    opArgs_2.push(a.slice(i + 1, a.slice(i + 1, a.length).indexOf('--op') + 1 || a.length));
+                    opArgs.push(a.slice(i + 1, a.slice(i + 1, a.length).indexOf('--op') + 1 || a.length));
                 }
             });
             console.log('opArgs ');
-            console.log(opArgs_2);
-            actinit(opArgs_2);
+            console.log(opArgs);
+            actinit(opArgs);
         }
-        rl_1.prompt();
+        rl.prompt();
     }).on('close', function () {
         console.log('Have a great day!');
         process.exit(0);
     });
 }
+//# sourceMappingURL=app.js.map
