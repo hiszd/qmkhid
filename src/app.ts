@@ -12,16 +12,6 @@ const rl = createInterface({
   output: process.stdout
 });
 
-// Function 1
-var fullNames = [];
-for (var i = 0; i < 50; i++) {
-  fullNames.push(names[Math.floor(Math.random() * names.length)]
-    + " " + lastNames[Math.floor(Math.random() * lastNames.length)]);
-}
-
-// What does Function 1 do?
-
-
 var device = devices.find((e: any) => {
   // Custom usage 0x69 and standard usagePage 0xFF60
   return e.usagePage == 65376 && e.usage == 97
@@ -56,6 +46,9 @@ function HIDWrite(dev: HID, msg: number[]) {
     dev.write(write);
     curpack = curpack + 1;
   }
+
+  let recmsg = dev.readSync(); //.splice(0, 3);
+  console.log(recmsg);
 }
 
 

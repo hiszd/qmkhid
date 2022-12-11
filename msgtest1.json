@@ -4,7 +4,7 @@
       "actions": [
         {
           "action": "msg_send",
-          "msg": "COD Opened"
+          "msg": "Hello Mik"
         }
       ]
     }

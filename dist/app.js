@@ -44,6 +44,8 @@ function HIDWrite(dev, msg) {
         dev.write(write);
         curpack = curpack + 1;
     }
+    let recmsg = dev.readSync(); //.splice(0, 3);
+    console.log(recmsg);
 }
 // Actual messages sent to the HID device
 // Format is like this:
