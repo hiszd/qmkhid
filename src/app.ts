@@ -2,16 +2,14 @@ import { rgb2hsv } from "./lib.js";
 import { HID, devices as HIDDevices } from 'node-hid';
 import commandLineArgs from 'command-line-args';
 var devices = HIDDevices();
+devices.forEach((v, i) => {
+  console.log(`${i}: ${JSON.stringify(v)}`)
+})
 // const exec = require('child_process').exec;
 import { exec } from 'child_process';
 // const fs = require('fs');
 import fs from 'fs';
 import { createInterface } from 'readline';
-const rl = createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
-
 var device = devices.find((e: any) => {
   // Custom usage 0x69 and standard usagePage 0xFF60
   return e.usagePage == 65376 && e.usage == 97
@@ -20,7 +18,9 @@ var device = devices.find((e: any) => {
 console.log(device);
 
 var keys = new HID(device.path);
-function HIDWrite(dev: HID, msg: number[]) {
+
+function HIDWrite(dev: HID, msg: number[], ack: boolean) {
+  console.log(ack);
   // divisor for packet size is actual packet size(32bytes) - header size(4bytes) = 28bytes
   const div = 28;
   const packageamt = Math.ceil(msg.length / div);
@@ -47,8 +47,23 @@ function HIDWrite(dev: HID, msg: number[]) {
     curpack = curpack + 1;
   }
 
-  let recmsg = dev.readSync(); //.splice(0, 3);
-  console.log(recmsg);
+  if (ack) {
+    dev.read((err, dat) => {
+      if (dat[4] == 0) {
+        throw ('HID Command Error')
+      }
+      if (!err) {
+        console.log('hochser: ');
+        for (let i = 0; i < dat[3]; i++) {
+          console.log(dat[i + 1])
+        }
+      } else {
+        console.log(`problem: ${err}`);
+      }
+    });
+  }
+
+  return;
 }
 
 
@@ -74,13 +89,13 @@ let actions: { [key: string]: Function } = {
     lay = (lay & 0xFF);
     const write = [0, 1, lay];
     // console.log("hid write: ", write.toString());
-    HIDWrite(keys, write);
+    HIDWrite(keys, write, true);
   },
   "layer_off": (lay: number): void => {
     lay = (lay & 0xFF);
     const write = [0, 0, lay];
     // console.log("hid write: ", write.toString());
-    HIDWrite(keys, write);
+    HIDWrite(keys, write, true);
   },
   "rgb_change": (r: number, g: number, b: number): void => {
     let hsv = rgb2hsv(r / 255, g / 255, b / 255);
@@ -91,7 +106,7 @@ let actions: { [key: string]: Function } = {
     v = (v & 0xFF);
     const write = [1, 0, h, s, v];
     // console.log("hid write: ", write.toString());
-    HIDWrite(keys, write);
+    HIDWrite(keys, write, true);
   },
   "rgb_all": (r: number, g: number, b: number): void => {
     r = (r & 0xFF);
@@ -99,7 +114,7 @@ let actions: { [key: string]: Function } = {
     b = (b & 0xFF);
     const write = [1, 3, r, g, b];
     // console.log("hid write: ", write.toString());
-    HIDWrite(keys, write);
+    HIDWrite(keys, write, true);
   },
   "rgb_ind": (r: number, g: number, b: number, i: number[]): void => {
     r = (r & 0xFF);
@@ -110,7 +125,7 @@ let actions: { [key: string]: Function } = {
       write.push(i[n] & 0xFF);
     }
     // console.log("hid write: ", write.toString());
-    HIDWrite(keys, write);
+    HIDWrite(keys, write, true);
   },
   "rgb_notify": (r: number, g: number, b: number): void => {
     let hsv = rgb2hsv(r / 255, g / 255, b / 255);
@@ -121,13 +136,13 @@ let actions: { [key: string]: Function } = {
     v = (v & 0xFF);
     const write = [1, 2, h, s, v];
     // console.log("hid write: ", write.toString());
-    HIDWrite(keys, write);
+    HIDWrite(keys, write, true);
     let oldhsv = keys.readSync().splice(0, 3);
     console.log(oldhsv);
     setTimeout(() => {
       const write = [1, 0, oldhsv[0], oldhsv[1], oldhsv[2]];
       // console.log("hid write: ", write.toString());
-      HIDWrite(keys, write);
+      HIDWrite(keys, write, true);
     }, 1000)
   },
   "msg_send": (msg: string): void => {
@@ -136,12 +151,12 @@ let actions: { [key: string]: Function } = {
       write.push(msg.charCodeAt(char));
     }
     // console.log("hid write: ", write.toString());
-    HIDWrite(keys, write);
+    HIDWrite(keys, write, true);
   },
   "bootloader": (): void => {
     const write = [99, 0];
     console.log('bootloader');
-    HIDWrite(keys, write);
+    HIDWrite(keys, write, false);
   }
 }
 
@@ -505,6 +520,11 @@ if (commandOptions.command === 'config') {
   actinit(opArgs);
 
 } else if (commandOptions.command === 'cli') {
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
   rl.setPrompt('cmd> ');
   rl.prompt();
 
