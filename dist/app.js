@@ -45,22 +45,13 @@ function HIDWrite(dev, msg, ack) {
         curpack = curpack + 1;
     }
     if (ack) {
-        dev.read((err, dat) => {
-            if (dat[4] == 0) {
-                throw ('HID Command Error');
-            }
-            if (!err) {
-                console.log('hochser: ');
-                for (let i = 0; i < dat[3]; i++) {
-                    console.log(dat[i + 1]);
-                }
-            }
-            else {
-                console.log(`problem: ${err}`);
-            }
-        });
+        let resp = dev.readSync();
+        resp = resp.slice(0, resp[3]);
+        console.log(`response: [${resp}]`);
+        if (resp[4] = 0) {
+            throw ('HID Command failed');
+        }
     }
-    return;
 }
 // Actual messages sent to the HID device
 // Format is like this:
